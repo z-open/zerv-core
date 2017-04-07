@@ -1,6 +1,6 @@
 {
   "name": "zerv-core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Zerv core module provides authentication of socket.io connections using Auth Code and token refresh on top of JWT",
   "main": "lib/index.js",
   "keywords": [

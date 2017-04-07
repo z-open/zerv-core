@@ -14,6 +14,9 @@ var promise = require('promise');
 var server, sio;
 var enableDestroy = require('server-destroy');
 
+
+var bodyParser = require('body-parser');
+
 exports.start = function(options, callback) {
 
     if (typeof options == 'function') {
@@ -39,6 +42,7 @@ exports.start = function(options, callback) {
     }
 
     var app = express();
+    app.use(bodyParser.json());
     server = http.createServer(app);
 
 

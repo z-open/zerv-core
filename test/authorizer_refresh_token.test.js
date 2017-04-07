@@ -62,11 +62,11 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
         beforeEach(function(done) {
             request.post({
-                url: 'http://localhost:9000/login',
-                form: { username: 'jose', password: 'Pa123' },
+                url: 'http://localhost:9000/authorize',
+                body: { username: 'jose', password: 'Pa123', 'grant_type':'login' },
                 json: true
             }, function(err, resp, body) {
-                this.token = body.token;
+                this.token = body.access_token;
                 done();
             }.bind(this));
         });
@@ -186,6 +186,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             });
             var token = this.token;
             var refreshedToken;
+            
             socket.on('connect', function() {
                 socket.on('authenticated', function(refreshToken) {
                     should.exist(refreshToken);

@@ -30,10 +30,11 @@
     "zlog": "git://github.com/z-open/zlog#1.0.0"
   },
   "devDependencies": {
-    "body-parser": "~1.13.3",
-    "express": "~4.10.6",
+    "body-parser": "~1.14.2",
+   
+    "express": "^4.13.3",
     "mocha": "~1.17.0",
-    "request": "~2.19.0",
+    "request": "~2.74.0",
     "serve-static": "^1.7.1",
     "server-destroy": "~1.0.1",
     "should": "~1.2.2",

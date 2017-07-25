@@ -2,7 +2,7 @@ var express = require('express');
 var http = require('http');
 
 var socketIo = require('socket.io');
-var socketio_auth = require('../../lib');
+var socketio_auth = require('../../lib/zerv-core');
 
 var jwt = require('jsonwebtoken');
 
@@ -28,7 +28,7 @@ exports.start = function (options, callback) {
     options.timeout = 1000;
     options.findUserByCredentials = function (user) {
         return new Promise(function (resolve, reject) {
-            if (user.password!=='Pa123') {
+            if (user.password !== 'Pa123') {
                 return reject('USER_INVALID');
             }
             resolve(

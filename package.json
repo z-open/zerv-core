@@ -27,6 +27,7 @@
     "promise": "^7.1.1",
     "socket.io": "^2.0.0",
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.5",
+    "zjsonbin": "git://github.com/z-open/zjsonbin#0.0.1",
     "xtend": "~2.1.2",
     "zlog": "git://github.com/z-open/zlog#1.0.0"
   },

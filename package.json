@@ -32,6 +32,8 @@
   },
   "devDependencies": {
     "body-parser": "~1.14.2",
+    "eslint": "^4.3.0",
+    "eslint-config-google": "^0.9.1",
     "express": "^4.13.3",
     "mocha": "~1.17.0",
     "request": "~2.74.0",

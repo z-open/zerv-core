@@ -6,7 +6,9 @@
   "keywords": [
     "socket",
     "socket.io",
-    "jwt"
+    "jwt",
+    "zerv",
+    "application server"
   ],
   "author": {
     "name": "Emmanuel Telmon",
@@ -17,7 +19,8 @@
     "url": "https://github.com/z-open/zerv-core.git"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "eslint": "./node_modules/eslint/bin/eslint.js --fix lib/*"
   },
   "license": "MIT",
   "dependencies": {

@@ -1,12 +1,14 @@
 {
   "name": "zerv-core",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Zerv core module provides authentication of socket.io connections using Auth Code and token refresh on top of JWT",
   "main": "lib/zerv-core.js",
   "keywords": [
     "socket",
     "socket.io",
-    "jwt"
+    "jwt",
+    "zerv",
+    "application server"
   ],
   "author": {
     "name": "Emmanuel Telmon",
@@ -17,20 +19,25 @@
     "url": "https://github.com/z-open/zerv-core.git"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "eslint": "./node_modules/eslint/bin/eslint.js --fix lib/*"
   },
   "license": "MIT",
   "dependencies": {
     "jsonwebtoken": "^5.0.0",
-    "xtend": "~2.1.2",
-    "promise": "^7.1.1",
     "lodash": "^4.0.0",
+    "msgpack-lite": "^0.1.26",
+    "promise": "^7.1.1",
     "socket.io": "^2.0.0",
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.5",
+    "zjsonbin": "git://github.com/z-open/zjsonbin#0.0.1",
+    "xtend": "~2.1.2",
     "zlog": "git://github.com/z-open/zlog#1.0.0"
   },
   "devDependencies": {
     "body-parser": "~1.14.2",
+    "eslint": "^4.3.0",
+    "eslint-config-google": "^0.9.1",
     "express": "^4.13.3",
     "mocha": "~1.17.0",
     "request": "~2.74.0",

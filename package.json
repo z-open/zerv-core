@@ -32,7 +32,7 @@
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.5",
     "zjsonbin": "git://github.com/z-open/zjsonbin#0.0.2",
     "xtend": "~2.1.2",
-    "zimit-zlog": "1.0.3"
+    "zlog4js": "^1.0.5"
   },
   "devDependencies": {
     "body-parser": "~1.14.2",

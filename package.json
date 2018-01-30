@@ -19,7 +19,9 @@
     "url": "https://github.com/z-open/zerv-core.git"
   },
   "scripts": {
-    "test": "mocha",
+    "test": "npm run mocha; npm run jasmine",
+    "mocha": "mocha test/authorizer_refresh_token.test.js",
+    "jasmine": "./node_modules/jasmine/bin/jasmine.js test/transaction.spec.js",
     "eslint": "./node_modules/eslint/bin/eslint.js --fix lib/* test/*.spec.js"
   },
   "license": "MIT",

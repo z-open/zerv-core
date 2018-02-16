@@ -11,7 +11,6 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
     let options;
     // start and stop the server
     before(function(done) {
-        let id = 0;
         options = {
             refresh: function(decoded) {
                 return jwt.sign(decoded, this.secret, {expiresIn: 10});
@@ -26,7 +25,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
     after(fixture.stop);
 
     beforeEach(function(done) {
-        // otherwise test might create similar tokens (based on now())  
+        // otherwise test might create similar tokens (based on now())
         options.clearBlackList();
         done();
     });

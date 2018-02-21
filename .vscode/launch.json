@@ -58,12 +58,12 @@
 			"outDir": null
 		},
 		{
-			"name": "debug abstract-transaction",
+			"name": "debug core-transaction",
 			"type": "node",
 			"request": "launch",
 			"program": "${workspaceRoot}/node_modules/jasmine/bin/jasmine.js",
 			"stopOnEntry": false,
-			"args": ["test/abstract-transaction.spec.js"],
+			"args": ["test/core-transaction.spec.js"],
 			"cwd": "${workspaceRoot}",
 			"preLaunchTask": null,
 			"runtimeExecutable": null,

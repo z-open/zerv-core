@@ -26,16 +26,15 @@
   },
   "license": "MIT",
   "dependencies": {
+    "core-transaction": "^0.0.1",
     "jsonwebtoken": "^5.0.0",
     "lodash": "^4.0.0",
-    "msgpack-lite": "^0.1.26",
     "promise": "^7.1.1",
     "socket.io": "^2.0.0",
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.5",
     "xtend": "~2.1.2",
     "zjsonbin": "git://github.com/z-open/zjsonbin#0.0.2",
-    "zlog4js": "^1.0.5",
-    "abstract-transaction": "git://github.com/etelmon/abstract-transaction"
+    "zlog4js": "^1.0.5"
   },
   "devDependencies": {
     "jasmine": "^2.9.0",

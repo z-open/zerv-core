@@ -4,7 +4,7 @@ module.exports = {
         'eslint-config-google',
     ],
     "parserOptions": {
-        "ecmaVersion": 6
+        "ecmaVersion": 2017
     },
     rules: {
         'no-invalid-this': 0,

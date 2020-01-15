@@ -19,22 +19,25 @@
     "url": "https://github.com/z-open/zerv-core.git"
   },
   "scripts": {
-    "test": "mocha",
-    "eslint": "./node_modules/eslint/bin/eslint.js --fix lib/*"
+    "test": "npm run mocha; npm run jasmine",
+    "mocha": "mocha test/authorizer_refresh_token.test.js",
+    "jasmine": "./node_modules/jasmine/bin/jasmine.js test/*.spec.js",
+    "eslint": "./node_modules/eslint/bin/eslint.js --fix **/*.js"
   },
   "license": "MIT",
   "dependencies": {
+    "core-transaction": "^0.0.3",
     "jsonwebtoken": "^5.0.0",
     "lodash": "^4.0.0",
-    "msgpack-lite": "^0.1.26",
     "promise": "^7.1.1",
     "socket.io": "^2.0.0",
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.5",
     "zjsonbin": "git://github.com/z-open/zjsonbin#1.0.0",
     "xtend": "~2.1.2",
-    "zimit-zlog": "1.0.3"
+    "zlog4js": "^1.0.5"
   },
   "devDependencies": {
+    "jasmine": "^2.9.0",
     "body-parser": "~1.14.2",
     "eslint": "^4.3.0",
     "eslint-config-google": "^0.9.1",

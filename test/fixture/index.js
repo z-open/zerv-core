@@ -1,24 +1,23 @@
-var express = require('express');
-var http = require('http');
+let express = require('express');
+let http = require('http');
 
-var socketIo = require('socket.io');
-var socketio_auth = require('../../lib/zerv-core');
+let socketIo = require('socket.io');
+let socketio_auth = require('../../lib/zerv-core');
 
-var jwt = require('jsonwebtoken');
+let jwt = require('jsonwebtoken');
 
-var xtend = require('xtend');
+let xtend = require('xtend');
 var bodyParser = require('body-parser');
 
-var promise = require('promise');
+let promise = require('promise');
 
-var server, sio;
-var enableDestroy = require('server-destroy');
+let server, sio;
+let enableDestroy = require('server-destroy');
 
 
 var bodyParser = require('body-parser');
 
-exports.start = function (options, callback) {
-
+exports.start = function(options, callback) {
     if (typeof options == 'function') {
         callback = options;
         options = {};
@@ -26,8 +25,8 @@ exports.start = function (options, callback) {
 
     options.secret = 'aaafoo super sercret';
     options.timeout = 1000;
-    options.findUserByCredentials = function (user) {
-        return new Promise(function (resolve, reject) {
+    options.findUserByCredentials = function(user) {
+        return new Promise(function(resolve, reject) {
             if (user.password !== 'Pa123') {
                 return reject('USER_INVALID');
             }
@@ -40,22 +39,21 @@ exports.start = function (options, callback) {
                 }
 
             );
-
         });
     };
-    options.restUrl = function () {
+    options.restUrl = function() {
         return 'restServer/';
-    }
-    options.appUrl = function () {
+    };
+    options.appUrl = function() {
         return 'appServer/';
-    }
+    };
 
-    var app = express();
+    let app = express();
     app.use(bodyParser.json());
     server = http.createServer(app);
 
 
-    sio = socketio_auth.infrastructure(server, app, options)
+    sio = socketio_auth.infrastructure(server, app, options);
 
     // app.use(bodyParser.json());
 
@@ -96,14 +94,14 @@ exports.start = function (options, callback) {
 
 
     server.__sockets = [];
-    server.on('connection', function (c) {
+    server.on('connection', function(c) {
         server.__sockets.push(c);
     });
     server.listen(9000, callback);
     enableDestroy(server);
 };
 
-exports.stop = function (callback) {
+exports.stop = function(callback) {
     sio.close();
     try {
         server.destroy();

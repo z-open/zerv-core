@@ -136,12 +136,101 @@ Install latest npm revision of angular-socketio.
 __Server side__:
 ```javascript
 ```
+## Transaction support
+
+__transaction Api__
+
+To implementation transaction support to an api process, get the transaction instance.
+
+Ex:
+```javascript
+
+apiRouter.on('accountTransfer',function handle(params) {
+    var handler = this;
+    return  handler.getTransaction()      .execute((transaction) => 
+        Promise.all([
+            debit(transaction, params.source, params.amount),
+            credit(params.dest, params.amount)
+        ])
+    );
+});
+
+function debit(transaction, tenantid, account, amount) {
+    const bankTrans = new BankTransaction(account, amount);
+    return transaction.executeQuery('insert in table ...',bankTrans)
+    .then(() => transaction.notifyCreation(tenantId, 'BANK_TRANS', bankTrans));
+}
+
+```
+
+Here the debit function uses the transaction to execute a sql statement.
+
+The transaction also provides the notification functions necessary for zerv-sync (see library).
+It is only if the whole transaction commits successfully that notifications will be issued.
+
+THe transaction implementation must set in  zerv configuration at server start.
+
+
+```javascript
+class DbTransactionImplementation extends zerv.TransactionCoreClass {
+
+    // the constructor structure
+    constructor(parentTransaction, options) {
+        super(parentTransaction, {
+            processBegin: _.noop,
+            processCommit: _.noop,
+            processRollback: _.noop,
+            processInnerBegin: _.noop,
+            processInnerCommit: _.noop,
+            processInnerRollback: _.noop
+        },
+        options);
+    }
+
+    // User define functions
+    executeQuery(statement) {
+        return Promise.resolve('SUCCESS');
+    }
+}
+
+zerv.TransactionImplementationClass = DbTransactionImplementation;
+```
+The implementation must provide the transactional functions your intend to user, ex: executeQuery in the example above.
+
+The transaction class must also implement the commit and rollback. 
+In the case of a db, the processBegin might provide the begin statement you need to issue to a db.
+The processCommit and processRollback would provide the commit and rollback statements.
+
+All functions must return a promise.
+
+Ssupport for transaction recovery point for inner transaction can also be implemented.
+
+__Other transactional process__
+
+Transactional process independent from the api route transaction might also be implemented
+
+```javascript
+function independentProcess() {
+    return zerv.defineTransaction('NEW')
+    execute((transaction) => service.do(transaction, other params))
+}
+
+function independentProcessThatMightReuseAnExistingTransaction(parentTransaction) {
+    return zerv.defineTransaction('REUSE_OR_NEW', parentTransaction)
+    execute((transaction) => service.do(transaction, other params))
+}
+```
+
+zerv.defineTransaction(requirements, parentTransaction, options)
+
+Requirements : USE, NEW, REUSE_OR_NEW
+
+Options: 
+onCommit callback is executed after the transaction commits.
+onRollback callback is executed after the transaction rollbacks.
+
 
 ## Challenges to address
-
-__active connection with invalid token__
-
-server should force disconnection to prevent client to remain connected after expiration...)
 
 __Auth Code and token access__
 

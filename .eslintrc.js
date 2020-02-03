@@ -18,6 +18,19 @@ module.exports = {
         'arrow-parens': 0,
 
         // not yet es6, node_modules/eslint/bin/eslint.js --fix 
-        'no-var': 1
-    }
+        'no-var': 1,
+
+        'indent': ['error', 4, {
+            // How chaining and related is not consistently formatted in this application. But there are too many
+            // instances of incorrectness to fix (2010)
+            MemberExpression: 'off',
+            // This primarily occurs because of our old style of defining component specs with strings in arrays. Once
+            // those are all shifted to template literals, this can be enabled (127 issues)
+            ArrayExpression: 'off',
+            // Commented out code does not need to follow indenting standards
+            ignoreComments: true,
+        }],
+    },
+
+    
 }

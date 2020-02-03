@@ -8,43 +8,43 @@ const bodyParser = require('body-parser');
 let server, sio;
 
 exports.start = function(options, callback) {
-  if (typeof options == 'function') {
-    callback = options;
-    options = {};
-  }
+    if (typeof options == 'function') {
+        callback = options;
+        options = {};
+    }
 
-  options.secret = 'aaafoo super sercret';
-  options.timeout = 1000;
-  options.findUserByCredentials = function(user) {
-    return new Promise(function(resolve, reject) {
-      if (user.password !== 'Pa123') {
+    options.secret = 'aaafoo super sercret';
+    options.timeout = 1000;
+    options.findUserByCredentials = function(user) {
+        return new Promise(function(resolve, reject) {
+            if (user.password !== 'Pa123') {
         // eslint-disable-next-line prefer-promise-reject-errors
-        return reject('USER_INVALID');
-      }
-      resolve(
-          {
-            first_name: 'John',
-            last_name: 'Doe',
-            email: 'john@doe.com',
-            id: 123
-          }
+                return reject('USER_INVALID');
+            }
+            resolve(
+                {
+                    first_name: 'John',
+                    last_name: 'Doe',
+                    email: 'john@doe.com',
+                    id: 123
+                }
 
-      );
-    });
-  };
-  options.restUrl = function() {
-    return 'restServer/';
-  };
-  options.appUrl = function() {
-    return 'appServer/';
-  };
+            );
+        });
+    };
+    options.restUrl = function() {
+        return 'restServer/';
+    };
+    options.appUrl = function() {
+        return 'appServer/';
+    };
 
-  const app = express();
-  app.use(bodyParser.json());
-  server = http.createServer(app);
+    const app = express();
+    app.use(bodyParser.json());
+    server = http.createServer(app);
 
 
-  sio = socketioAuth.infrastructure(server, app, options);
+    sio = socketioAuth.infrastructure(server, app, options);
 
   // app.use(bodyParser.json());
 
@@ -84,18 +84,18 @@ exports.start = function(options, callback) {
   //     });
 
 
-  server.__sockets = [];
-  server.on('connection', function(c) {
-    server.__sockets.push(c);
-  });
-  server.listen(9000, callback);
-  enableDestroy(server);
+    server.__sockets = [];
+    server.on('connection', function(c) {
+        server.__sockets.push(c);
+    });
+    server.listen(9000, callback);
+    enableDestroy(server);
 };
 
 exports.stop = function(callback) {
-  sio.close();
-  try {
-    server.destroy();
-  } catch (er) { }
-  callback();
+    sio.close();
+    try {
+        server.destroy();
+    } catch (er) { }
+    callback();
 };

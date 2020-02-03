@@ -7,6 +7,7 @@ let startTransaction;
 
 describe('transaction', () => {
     const tenantId = 'tenantId1';
+    // eslint-disable-next-line prefer-promise-reject-errors
     const failedProcess = () => Promise.reject('A PROCESS ERROR');
 
     const successfullProcessWithNotifications = (transactionHandler) => {
@@ -15,6 +16,7 @@ describe('transaction', () => {
     };
     const failedProcessWithNotifications = (transactionHandler) => {
         transactionHandler.notifyCreation(tenantId, 'MAGAZINE', {id: 1, description: 'super magazine'});
+        // eslint-disable-next-line prefer-promise-reject-errors
         return Promise.reject('A PROCESS ERROR');
     };
 

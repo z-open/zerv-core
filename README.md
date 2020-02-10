@@ -167,6 +167,17 @@ In the zerv-sync module, you can read how to exploit any event on the front end.
 A publication could also be created to receive user session changes via this event. 
 A subscription would be able to receive the changes on the front end.
 
+## shutdown support
+
+__shutdown(delay)__
+The function will exit the node process when all current api calls completed and will not accept any further call to any zerv api.
+
+```javascript
+zerv.shutdown(10);
+```
+__isServerShutDownInProgress()__
+
+this function returns true is the zerv server is in the process of shutting down.
 
 
 ## Transaction support

@@ -17,7 +17,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             },
             claim: function(user) {
                 return user;
-            }
+            },
+            tokenExpiresInMins: 10
+
         };
         fixture.start(options, done);
     });

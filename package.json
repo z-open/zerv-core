@@ -1,6 +1,6 @@
 {
   "name": "zerv-core",
-  "version": "1.1.8",
+  "version": "1.2.1",
   "description": "Zerv core module provides authentication of socket.io connections using Auth Code and token refresh on top of JWT",
   "main": "lib/zerv-core.js",
   "keywords": [
@@ -19,34 +19,36 @@
     "url": "https://github.com/z-open/zerv-core.git"
   },
   "scripts": {
-    "test": "npm run mocha; npm run jasmine",
+    "test": "npm run jasmine; npm run mocha",
     "mocha": "mocha test/authorizer_refresh_token.test.js",
     "jasmine": "./node_modules/jasmine/bin/jasmine.js test/*.spec.js",
-    "eslint": "./node_modules/eslint/bin/eslint.js --fix **/*.js"
+    "eslint": "./node_modules/eslint/bin/eslint.js lib/**/*.js test/**/*.js",
+    "eslintfix": "./node_modules/eslint/bin/eslint.js --fix lib/**/*.js test/**/*.js"
   },
   "license": "MIT",
   "dependencies": {
-    "core-transaction": "^0.0.3",
-    "jsonwebtoken": "^5.0.0",
-    "lodash": "^4.0.0",
-    "promise": "^7.1.1",
-    "socket.io": "^2.0.0",
+    "core-transaction": "0.0.3",
+    "jsonwebtoken": "5.0.0",
+    "lodash": "4.17.15",
+    "promise": "8.0.3",
+    "socket.io": "2.3.0",
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.5",
-    "zjsonbin": "git://github.com/z-open/zjsonbin#1.0.0",
-    "xtend": "~2.1.2",
-    "zlog4js": "^1.0.5"
+    "uuid": "3.4.0",
+    "xtend": "4.0.2",
+    "zjsonbin": "git://github.com/z-open/zjsonbin#2.0.0",
+    "zlog4js": "1.0.5"
   },
   "devDependencies": {
-    "jasmine": "^2.9.0",
-    "body-parser": "~1.14.2",
-    "eslint": "^4.3.0",
-    "eslint-config-google": "^0.9.1",
-    "express": "^4.13.3",
-    "mocha": "~1.17.0",
-    "request": "~2.74.0",
-    "serve-static": "^1.7.1",
-    "server-destroy": "~1.0.1",
-    "should": "~1.2.2",
-    "socket.io-client": "^2.0.0"
+    "body-parser": "1.19.0",
+    "eslint": "6.8.0",
+    "eslint-config-google": "0.14.0",
+    "express": "4.17.1",
+    "jasmine": "3.5.0",
+    "mocha": "7.0.1",
+    "moment": "2.24.0",
+    "request": "2.88.0",
+    "server-destroy": "1.0.1",
+    "should": "13.2.3",
+    "socket.io-client": "2.3.0"
   }
 }

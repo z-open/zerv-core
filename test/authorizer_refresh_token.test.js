@@ -1,9 +1,9 @@
-let fixture = require('./fixture');
-let request = require('request');
-let io = require('socket.io-client');
-let should = require('should');
-let jwt = require('jsonwebtoken');
-let zlog = require('zlog4js');
+const fixture = require('./fixture');
+const request = require('request');
+const io = require('socket.io-client');
+const should = require('should');
+const jwt = require('jsonwebtoken');
+const zlog = require('zlog4js');
 
 zlog.setLogger('socketio-auth', 'NONE');
 
@@ -17,7 +17,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             },
             claim: function(user) {
                 return user;
-            }
+            },
+            tokenExpiresInMins: 10
+
         };
         fixture.start(options, done);
     });
@@ -33,7 +35,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
     describe('Socket authentication', function() {
         describe('when the user is not logged in', function() {
             it('should close the connection after a timeout if no auth message is received', function(done) {
-                let socket = io.connect('http://localhost:9000', {
+                const socket = io.connect('http://localhost:9000', {
                     forceNew: true
                 });
                 socket.once('disconnect', function() {
@@ -42,7 +44,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             });
 
             it('should not respond echo', function(done) {
-                let socket = io.connect('http://localhost:9000', {
+                const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
 
@@ -68,10 +70,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
 
             it('should do the handshake and connect and receive a different token', function(done) {
-                let socket = io.connect('http://localhost:9000', {
+                const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                let token = this.token;
+                const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken) {
                         should.exist(refreshToken);
@@ -85,10 +87,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
 
             it('should connect, refresh token and make the auth token invalid', function(done) {
-                let socket = io.connect('http://localhost:9000', {
+                const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                let token = this.token;
+                const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken) {
                         should.exist(refreshToken);
@@ -97,7 +99,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
 
                         // now trying a new connection but with the same token
-                        let socket2 = io.connect('http://localhost:9000', {
+                        const socket2 = io.connect('http://localhost:9000', {
                             'forceNew': true,
                         });
                         socket2.on('connect', function() {
@@ -114,17 +116,17 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
 
             it('should connect, refresh token and make the refreshed token invalid', function(done) {
-                let socket = io.connect('http://localhost:9000', {
+                const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                let token = this.token;
+                const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken) {
                         should.exist(refreshToken);
                         token.should.not.eql(refreshToken);
                         socket.close();
                         // now trying a new connection but with the same token
-                        let socket2 = io.connect('http://localhost:9000', {
+                        const socket2 = io.connect('http://localhost:9000', {
                             'forceNew': true,
                         });
                         socket2.on('connect', function() {
@@ -133,7 +135,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                 socket2.close();
 
                                 // now we try to use the first refreshToken again!
-                                let socket3 = io.connect('http://localhost:9000', {
+                                const socket3 = io.connect('http://localhost:9000', {
                                     'forceNew': true,
                                 });
                                 socket3.on('connect', function() {
@@ -151,10 +153,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             });
 
             it('should connect, refresh token and then logout', function(done) {
-                let socket = io.connect('http://localhost:9000', {
+                const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                let token = this.token;
+                const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken) {
                         should.exist(refreshToken);
@@ -169,10 +171,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
 
             it('should prevent reconnecting with same token after logout', function(done) {
-                let socket = io.connect('http://localhost:9000', {
+                const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                let token = this.token;
+                const token = this.token;
                 let refreshedToken;
 
                 socket.on('connect', function() {
@@ -185,7 +187,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                         socket.close();
 
                         // now we try to use the refreshToken again!
-                        let socket2 = io.connect('http://localhost:9000', {
+                        const socket2 = io.connect('http://localhost:9000', {
                             'forceNew': true,
                         });
                         socket2.on('connect', function() {

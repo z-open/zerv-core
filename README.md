@@ -136,6 +136,50 @@ Install latest npm revision of angular-socketio.
 __Server side__:
 ```javascript
 ```
+
+## User Session Management
+
+__api functions__
+
+- zerv.isLocalUserSession,
+- zerv.countLocalSessionsByUserId,
+- zerv.isUserSessionServerOrigin,
+- zerv.getLocalUserSessions
+
+__Server side__
+
+A USER_SESSION event is notified to the cluster after a user succesfully connects (browser refresh, or login) or disconnects any zerv instance.
+
+```javascript
+zerv.onChanges('USER_SESSION', (tenantId, userSession, notificationType) => {
+        if (notificationType === 'REMOVAL'
+            && zerv.isUserSessionServerOrigin(userSession)
+            && zerv.countLocalSessionsByUserId(userSession.userId) === 0
+        ) {
+            // ex
+            letSreleaseUserResources(tenantId, userSession.userId);
+        }
+    });
+```
+__Subscribing a client to user session data__
+
+In the zerv-sync module, you can read how to exploit any event on the front end. To sum up:
+A publication could also be created to receive user session changes via this event. 
+A subscription would be able to receive the changes on the front end.
+
+## shutdown support
+
+__shutdown(delay)__
+The function will exit the node process when all current api calls completed and will not accept any further call to any zerv api.
+
+```javascript
+zerv.shutdown(10);
+```
+__isServerShutDownInProgress()__
+
+this function returns true is the zerv server is in the process of shutting down.
+
+
 ## Transaction support
 
 __transaction Api__

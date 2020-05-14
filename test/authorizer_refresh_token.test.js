@@ -3,7 +3,7 @@ const request = require('request');
 const io = require('socket.io-client');
 const should = require('should');
 const jwt = require('jsonwebtoken');
-const zlog = require('zlog4js');
+const zlog = require('zimit-zlog');
 
 zlog.setLogger('socketio-auth', 'NONE');
 

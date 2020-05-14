@@ -27,7 +27,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "core-transaction": "0.0.3",
+    "core-transaction": "git://github.com/z-open/core-transaction#0.0.4",
     "jsonwebtoken": "5.0.0",
     "lodash": "4.17.15",
     "promise": "8.0.3",

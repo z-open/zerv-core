@@ -15,22 +15,25 @@ describe('user-session.service', () => {
         now = moment('Feb 6 2020 05:06:07', 'MMM DD YYYY hh:mm:ss').toDate();
         jasmine.clock().install();
         jasmine.clock().mockDate(now);
+
+        io = {
+            sockets: {
+                sockets: []
+            }
+        };
+
         socket = {
             id: 'socketId',
             userId: 'user23',
             origin: 'browserId3',
             tenantId: 'corpPlus',
             payload: '12345678',
-            creation: '02/01/2020'
+            creation: '02/01/2020',
+            server: io,
+            emit: _.noop
         };
 
-        io = {
-            sockets: {
-                sockets: [
-                    socket
-                ]
-            }
-        };
+        io.sockets.sockets = [socket];
 
         const zervSync = {
             publish: _.noop,

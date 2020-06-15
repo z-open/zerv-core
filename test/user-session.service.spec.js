@@ -55,9 +55,9 @@ describe('user-session.service', () => {
     });
 
     describe('createUserSessionEventHandler function', () => {
-        it('onUserConnect function creates a new session', () => {
+        it('connectUser function creates a new session', () => {
             const eventHandler = service.createUserSessionEventHandler(zerv, io, 2, null, null);
-            eventHandler.onUserConnect(socket);
+            eventHandler.connectUser(socket);
             const sessions = service.getLocalUserSessions();
             expect(sessions).toEqual([
                 {
@@ -75,9 +75,9 @@ describe('user-session.service', () => {
             ]);
         });
 
-        it('onUserConnect creates a new session that notifies via zerv sync', () => {
+        it('connectUser creates a new session that notifies via zerv sync', () => {
             const eventHandler = service.createUserSessionEventHandler(zervWithSyncModule, io, 2, null, null);
-            eventHandler.onUserConnect(socket);
+            eventHandler.connectUser(socket);
             const sessions = service.getLocalUserSessions();
             const expectedSession = {
                 id: 'socketId',
@@ -105,12 +105,12 @@ describe('user-session.service', () => {
             expect(zervWithSyncModule.notifyDelete).toHaveBeenCalledTimes(0);
         });
 
-        it('returns handler whose onUserDisconnect disconnect an existing session', () => {
+        it('returns handler whose disconnectUser disconnect an existing session', () => {
             const eventHandler = service.createUserSessionEventHandler(zerv, io, 2, null, null);
-            eventHandler.onUserConnect(socket);
+            eventHandler.connectUser(socket);
             jasmine.clock().tick(10000);
             now = new Date();
-            eventHandler.onUserDisconnect(socket);
+            eventHandler.disconnectUser(socket);
             const sessions = service.getLocalUserSessions();
             expect(sessions).toEqual([
                 {
@@ -129,12 +129,12 @@ describe('user-session.service', () => {
         });
 
 
-        it('returns handler whose onUserDisconnect disconnect an existing session', () => {
+        it('returns handler whose disconnectUser disconnect an existing session', () => {
             const eventHandler = service.createUserSessionEventHandler(zervWithSyncModule, io, 2, null, null);
-            eventHandler.onUserConnect(socket);
+            eventHandler.connectUser(socket);
             jasmine.clock().tick(10000);
             now = new Date();
-            eventHandler.onUserDisconnect(socket);
+            eventHandler.disconnectUser(socket);
             const sessions = service.getLocalUserSessions();
             const expectedInactiveSession = {
                 id: 'socketId',
@@ -167,11 +167,11 @@ describe('user-session.service', () => {
             spyOn(service, '_clearOldUserSessions').and.callThrough();
             const eventHandler = service.createUserSessionEventHandler(zerv, io, 2, null, null);
 
-            eventHandler.onUserConnect(socket);
+            eventHandler.connectUser(socket);
             jasmine.clock().tick(10000);
             now = new Date();
 
-            eventHandler.onUserDisconnect(socket);
+            eventHandler.disconnectUser(socket);
             let sessions = service.getLocalUserSessions();
             expect(sessions.length).toBe(1);
             expect(sessions).toEqual([

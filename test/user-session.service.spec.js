@@ -102,7 +102,6 @@ describe('user-session.service', () => {
             get: jasmine.createSpy('getRedisClient.get').and.returnValues(Promise.resolve())
         });
 
-        spyOn(UUID, 'v4').and.returnValue('aUuid');
     });
 
     afterEach(() => {
@@ -112,16 +111,16 @@ describe('user-session.service', () => {
     describe('connectUser function', () => {
         beforeEach(() => {
             spyOn(service, '_scheduleUserSessionMaintenance');
+            spyOn(service, '_scheduleAutoLogout');
         });
 
         it('should creates a new local session only', async () => {
             redisService.isRedisEnabled.and.returnValue(false);
             service.init(zerv, io, 2);
             io.sockets.sockets = [socketForUser01];
-            await service.connectUser(socketForUser01);
-            const sessions = service.getLocalUserSessions();
-            expect(sessions.length).toEqual(1);
-            expect(sessions[0].toJSON()).toEqual(
+            const localUserSession = await service.connectUser(socketForUser01);
+            expect(service.getLocalUserSessions()).toEqual([localUserSession]);
+            expect(localUserSession.toJSON()).toEqual(
                 {
                     id: jasmine.any(String),
                     userId: 'user01',
@@ -141,15 +140,16 @@ describe('user-session.service', () => {
                     connections: 1
                 }
             );
+            expect(service._scheduleAutoLogout).toHaveBeenCalledWith(localUserSession);
         });
 
         it('should creates a local session belonging to a cluster', async () => {
+            spyOn(UUID, 'v4').and.returnValue('aUuid');
             service.init(zerv, io, 2);
             io.sockets.sockets = [socketForUser01];
-            await service.connectUser(socketForUser01);
-            const sessions = service.getLocalUserSessions();
-            expect(sessions.length).toEqual(1);
-            expect(sessions[0].toJSON()).toEqual(
+            const localUserSession = await service.connectUser(socketForUser01);
+            expect(service.getLocalUserSessions()).toEqual([localUserSession]);
+            expect(localUserSession.toJSON()).toEqual(
                 {
                     id: jasmine.any(String),
                     userId: 'user01',
@@ -179,16 +179,14 @@ describe('user-session.service', () => {
         it('should create a new session that notifies via zerv sync', async () => {
             service.init(zervWithSyncModule, io, 2);
             io.sockets.sockets = [socketForUser01];
-            await service.connectUser(socketForUser01);
-            const sessions = service.getLocalUserSessions();
-            const expectedSession = sessions[0];
+            const localUserSession = await service.connectUser(socketForUser01);
 
             expect(zervWithSyncModule.publish).toHaveBeenCalledTimes(1);
             expect(zervWithSyncModule.notifyCreation).toHaveBeenCalledTimes(1);
             expect(zervWithSyncModule.notifyCreation).toHaveBeenCalledWith(
                 'corpPlus',
                 'USER_SESSION',
-                expectedSession
+                localUserSession
             );
             expect(zervWithSyncModule.notifyDelete).toHaveBeenCalledTimes(0);
         });
@@ -272,6 +270,46 @@ describe('user-session.service', () => {
         });
     });
 
+    describe('_scheduleAutoLogout function', () => {
+        let localUser01Session;
+        beforeEach(() => {
+            spyOn(service, '_scheduleAutoLogout').and.callThrough();
+            spyOn(service, 'logout');
+            redisService.isRedisEnabled.and.returnValue(true);
+            service.init(zerv, io, 2);
+            io.sockets.sockets = [socketForUser01];
+        });
+
+        it('should auto log out user session based on maximum session timeout', async () => {
+            service.setTenantMaximumActiveSessionTimeout(socketForUser01.tenantId, 7);
+            localUser01Session = await service.connectUser(socketForUser01);
+            expect(service._scheduleAutoLogout).toHaveBeenCalledWith(localUser01Session);
+
+            expect(localUser01Session.getRemainingTimeInSecs()).toEqual(420);
+            jasmine.clock().tick(3 * 60000);
+            expect(localUser01Session.getRemainingTimeInSecs()).toEqual(240);
+            expect(service.logout).not.toHaveBeenCalled();
+            jasmine.clock().tick(4 * 60000);
+            expect(localUser01Session.getRemainingTimeInSecs()).toEqual(0);
+            expect(service.logout).toHaveBeenCalledWith(localUser01Session.origin, 'session_timeout');
+        });
+
+        it('should auto log out the user session as the cluster session has already expired', async () => {
+            const _getClusterUserSession = service._getClusterUserSession;
+            spyOn(service, '_getClusterUserSession').and.callFake(async (localUserSession) => {
+                const clusterSession = await _getClusterUserSession(localUserSession);
+                clusterSession.clusterCreation = moment().add(-30, 'minutes').toDate();
+                return clusterSession;
+            })
+            service.setTenantMaximumActiveSessionTimeout(socketForUser01.tenantId, 7);
+            localUser01Session = await service.connectUser(socketForUser01);
+            expect(service._scheduleAutoLogout).toHaveBeenCalledWith(localUser01Session);
+            expect(localUser01Session.getRemainingTimeInSecs()).toEqual(0);
+            expect(service.logout).toHaveBeenCalledWith(localUser01Session.origin, 'session_timeout');
+
+        });
+
+    })
 
     describe('_removeAllInactiveLocalUserSessions function', () => {
 
@@ -306,26 +344,73 @@ describe('user-session.service', () => {
 
     });
 
+    describe('_handleLogoutNotification function', () => {
+
+        let localUserSession, localUser02Session;
+
+        beforeEach(async () => {
+            spyOn(service, '_logoutLocally');
+            service.init(zervWithSyncModule, io, 2);
+            io.sockets.sockets = [socketForUser01, socketForUser02];
+            localUserSession = await service.connectUser(socketForUser01);
+            localUser02Session = await service.connectUser(socketForUser02);
+        });
+
+        it('should be set up if sync lib is used', () => {
+            expect(zervWithSyncModule.onChanges).toHaveBeenCalledWith('USER_SESSION_LOGGED_OUT', service._handleLogoutNotification);
+        });
+
+        it('should log an existing session out if server is not the origin of the notification', () => {
+            service._handleLogoutNotification('not used', {
+                id: 'usedForZervInternalPublicationMechanism',
+                origin: socketForUser01.origin,
+                logoutReason: 'notif_test',
+                zervServerId: 'serverThatOriginatedLogout'
+            });
+            expect(service._logoutLocally).toHaveBeenCalledWith(localUserSession, 'notif_test');
+        });
+
+        it('should request logging out an existing session out if server is the origin of the notification', () => {
+            service._handleLogoutNotification('not used', {
+                id: 'usedForZervInternalPublicationMechanism',
+                origin: socketForUser01.origin,
+                logoutReason: 'notif_test',
+                zervServerId: serverInstanceId
+            });
+            expect(service._logoutLocally).not.toHaveBeenCalled();
+        });
+
+        it('should not logout anything if session does not exist on the server', () => {
+            service._handleLogoutNotification('not used', {
+                id: 'usedForZervInternalPublicationMechanism',
+                origin: 'aBrowserSessionNotHandledByThisServer',
+                logoutReason: 'notif_test',
+                zervServerId: serverInstanceId
+            });
+            expect(service._logoutLocally).not.toHaveBeenCalled();
+        });
+    });
+
     describe('_logoutLocally function', () => {
         let localUserSession, localUser02Session;
         beforeEach(async () => {
-            spyOn(service, '_removeLocalUserSession');
+            spyOn(service, '_destroyLocalUserSession');
             spyOn(tokenBlacklistService, 'blacklistToken');
 
             service.init(zervWithSyncModule, io, 2);
             io.sockets.sockets = [socketForUser01, socketForUser02, socket2ForUser01];
-            await service.connectUser(socketForUser01);
+            localUserSession = await service.connectUser(socketForUser01);
+            await service.connectUser(socket2ForUser01);
+            localUser02Session = await service.connectUser(socketForUser02);
 
             const sessions = service.getLocalUserSessions();
-            expect(sessions.length).toEqual(1);
-            localUserSession = sessions[0];
-            localUser02Session = sessions[1];
+            expect(sessions.length).toEqual(2);
         });
 
         it('should remove the local user session from memory', async () => {
             expect(localUserSession.active).toBeTrue();
             await service._logoutLocally(localUserSession, 'logout_test');
-            expect(service._removeLocalUserSession).toHaveBeenCalledWith(localUserSession, 'logout_test');
+            expect(service._destroyLocalUserSession).toHaveBeenCalledWith(localUserSession, 'logout_test');
             expect(localUserSession.active).toBeFalse();
         });
 
@@ -339,7 +424,7 @@ describe('user-session.service', () => {
 
         it('should NOT logout sockets or blacklist tokens of other user sessions', async () => {
             await service._logoutLocally(localUserSession, 'logout_test');
-            expect(service._removeLocalUserSession).not.toHaveBeenCalledWith(localUser02Session, 'logout_test');
+            expect(service._destroyLocalUserSession).not.toHaveBeenCalledWith(localUser02Session, 'logout_test');
             expect(socketForUser02.emit).not.toHaveBeenCalled();
             expect(tokenBlacklistService.blacklistToken).not.toHaveBeenCalledWith(socketForUser02.token);
         });
@@ -357,149 +442,133 @@ describe('user-session.service', () => {
         });
     });
 
-    xdescribe('createUserSessionEventHandler function', () => {
-        it('connectUser function creates a new session', () => {
-            const eventHandler = service.init(zerv, io, 2);
-            eventHandler.connectUser(socketForUser01);
+    describe('_destroyLocalUserSession function', () => {
+        let localUserSession, localUser02Session;
+        beforeEach(async () => {
+            spyOn(service, '_notifyLocalUserSessionDestroy');
+            service.init(zervWithSyncModule, io, 2);
+            io.sockets.sockets = [socketForUser01, socketForUser02, socket2ForUser01];
+            localUserSession = await service.connectUser(socketForUser01);
+            await service.connectUser(socket2ForUser01);
+            localUser02Session = await service.connectUser(socketForUser02);
+
             const sessions = service.getLocalUserSessions();
-            expect(sessions).toEqual([
-                {
-                    id: 'socketId',
-                    userId: 'user01',
-                    origin: 'browserId01',
-                    zervServerId: serverInstanceId,
-                    tenantId: 'corpPlus',
-                    creation: '02/01/2020',
-                    payload: '12345678',
-                    revision: 0,
-                    lastUpdate: now,
-                    active: true
-                }
-            ]);
+            expect(sessions.length).toEqual(2);
+        });
+        it('should remove from memory', () => {
+            service._destroyLocalUserSession(localUserSession, 'destroy_test');
+            expect(localUserSession.active).toEqual(false);
+            expect(service.getLocalUserSession(localUserSession.origin)).toBeUndefined();
+            expect(service.getLocalUserSession(localUser02Session.origin)).toBe(localUser02Session);
         });
 
-        it('connectUser creates a new session that notifies via zerv sync', () => {
-            const eventHandler = service.createUserSessionEventHandler(zervWithSyncModule, io, 2, null, null);
-            eventHandler.connectUser(socketForUser01);
-            const sessions = service.getLocalUserSessions();
-            const expectedSession = {
-                id: 'socketId',
-                userId: 'user01',
-                origin: 'browserId01',
-                zervServerId: serverInstanceId,
+        it('should notify destroy listeners and session deletion', () => {
+            expect(localUserSession.timeout).toEqual(jasmine.anything());
+            service._destroyLocalUserSession(localUserSession, 'destroy_test');
+            expect(localUserSession.timeout).toBeNull();
+            expect(service._notifyLocalUserSessionDestroy).toHaveBeenCalledTimes(1);
+            expect(service._notifyLocalUserSessionDestroy).toHaveBeenCalledWith(localUserSession, 'destroy_test');
+            expect(zervWithSyncModule.notifyDelete).toHaveBeenCalledWith(localUserSession.tenantId, 'USER_SESSION', localUserSession);
+        });
+
+        it('should not notify the session removal', () => {
+            zervWithSyncModule.publish = null;
+            service._destroyLocalUserSession(localUserSession, 'destroy_test');
+            expect(zervWithSyncModule.notifyDelete).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('logout function', () => {
+
+        let localUserSession;
+
+        beforeEach(async () => {
+            spyOn(service, '_logoutLocally');
+            localUserSession = {
+                id:'aSession',
                 tenantId: 'corpPlus',
-                creation: '02/01/2020',
-                payload: '12345678',
-                revision: 0,
-                lastUpdate: now,
-                active: true
+                origin: 'browserOriginId',
+                zervServerId: 'thisServer'
             };
-            expect(sessions).toEqual([
-                expectedSession
-            ]);
+            spyOn(service, 'getLocalUserSession').and.returnValue(localUserSession);
+        });
+
+        it('should log out the session at the origin provided and notify to other servers', async () => {
+            service.init(zervWithSyncModule, io, 2);
+            await service.logout(localUserSession.origin, 'logout_test');
+            expect(service._logoutLocally).toHaveBeenCalledWith(localUserSession, 'logout_test');
 
             expect(zervWithSyncModule.publish).toHaveBeenCalledTimes(1);
             expect(zervWithSyncModule.notifyCreation).toHaveBeenCalledTimes(1);
             expect(zervWithSyncModule.notifyCreation).toHaveBeenCalledWith(
                 'corpPlus',
-                'USER_SESSION',
-                expectedSession
-            );
-            expect(zervWithSyncModule.notifyDelete).toHaveBeenCalledTimes(0);
-        });
-
-        it('returns handler whose disconnectUser disconnect an existing session', () => {
-            const eventHandler = service.createUserSessionEventHandler(zerv, io, 2, null, null);
-            eventHandler.connectUser(socketForUser01);
-            jasmine.clock().tick(10000);
-            now = new Date();
-            eventHandler.disconnectUser(socketForUser01);
-            const sessions = service.getLocalUserSessions();
-            expect(sessions).toEqual([
-                {
-                    id: 'socketId',
-                    userId: 'user01',
-                    origin: 'browserId01',
-                    zervServerId: serverInstanceId,
-                    tenantId: 'corpPlus',
-                    creation: '02/01/2020',
-                    payload: '12345678',
-                    revision: 1,
-                    lastUpdate: now,
-                    active: false
-                }
-            ]);
-        });
-
-
-        it('returns handler whose disconnectUser disconnect an existing session', () => {
-            const eventHandler = service.createUserSessionEventHandler(zervWithSyncModule, io, 2, null, null);
-            eventHandler.connectUser(socketForUser01);
-            jasmine.clock().tick(10000);
-            now = new Date();
-            eventHandler.disconnectUser(socketForUser01);
-            const sessions = service.getLocalUserSessions();
-            const expectedInactiveSession = {
-                id: 'socketId',
-                userId: 'user01',
-                origin: 'browserId01',
-                zervServerId: serverInstanceId,
-                tenantId: 'corpPlus',
-                creation: '02/01/2020',
-                payload: '12345678',
-                revision: 1,
-                lastUpdate: now,
-                active: false
-            };
-
-            expect(sessions).toEqual([
-                expectedInactiveSession
-            ]);
-            expect(zervWithSyncModule.publish).toHaveBeenCalledTimes(1);
-            expect(zervWithSyncModule.notifyCreation).toHaveBeenCalledTimes(1);
-            expect(zervWithSyncModule.notifyDelete).toHaveBeenCalledTimes(1);
-            expect(zervWithSyncModule.notifyDelete).toHaveBeenCalledWith(
-                    'corpPlus',
-                    'USER_SESSION',
-                    expectedInactiveSession
+                'USER_SESSION_LOGGED_OUT',
+                { id: 1580983567000, origin: 'browserOriginId', logoutReason: 'logout_test', zervServerId: 'thisServer' },
+                { allServers: true }
             );
         });
 
+        it('should log out the session at the origin provided and NOT notify when sync module is not used', async () => {
+            service.init(zerv, io, 2);
+            await service.logout(localUserSession.origin, 'logout_test');
+            expect(service._logoutLocally).toHaveBeenCalledWith(localUserSession, 'logout_test');
+            expect(zervWithSyncModule.publish).not.toHaveBeenCalled();
+            expect(zervWithSyncModule.notifyCreation).not.toHaveBeenCalled();
+        });
 
-        it('returns handler that will release inactive expired user session from memory on an interval basis', () => {
-            spyOn(service, '_clearOldUserSessions').and.callThrough();
-            const eventHandler = service.createUserSessionEventHandler(zerv, io, 2, null, null);
+    });
 
-            eventHandler.connectUser(socketForUser01);
-            jasmine.clock().tick(10000);
-            now = new Date();
+    describe('tenantMaximumActiveSessionTimeout value', () => {
+        it('should be set and retrieve properly', () => {
+            service.setTenantMaximumActiveSessionTimeout('prudentTenantId', 60);
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('prudentTenantId')).toEqual(60);
+        });
 
-            eventHandler.disconnectUser(socketForUser01);
-            let sessions = service.getLocalUserSessions();
-            expect(sessions.length).toBe(1);
-            expect(sessions).toEqual([
-                {
-                    id: 'socketId',
-                    userId: 'user01',
-                    origin: 'browserId01',
-                    zervServerId: serverInstanceId,
-                    tenantId: 'corpPlus',
-                    creation: '02/01/2020',
-                    payload: '12345678',
-                    revision: 1,
-                    lastUpdate: now,
-                    active: false
-                }
-            ]);
-            jasmine.clock().tick(2*60000);
-            sessions = service.getLocalUserSessions();
-            expect(service._clearOldUserSessions).toHaveBeenCalledTimes(1);
-            expect(sessions.length).toBe(1);
-            jasmine.clock().tick(2*60000);
-            sessions = service.getLocalUserSessions();
-            // the 2nd time the session will be removed from memeory
-            expect(service._clearOldUserSessions).toHaveBeenCalledTimes(2);
-            expect(sessions.length).toBe(0);
+        it('should be a default value for invalid value', () => {
+            service.setTenantMaximumActiveSessionTimeout('aTenant', -5);
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('aTenant')).toEqual(720);
+        });
+        
+        it('should be a default value for inexisting tenant', () => {
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('carelessTenantId')).toEqual(720);
         });
     });
+
+    describe('localSessionDestroy listener', () => {
+
+        let localUserSession;
+
+        beforeEach(async () => {
+            localUserSession = {
+                id:'aSession',
+                tenantId: 'corpPlus',
+                origin: 'browserOriginId',
+                zervServerId: 'thisServer'
+            };
+        });
+
+        it('should be set with a callback', () => {
+            const callback = jasmine.createSpy('destroyCallback');
+            const off = service.onLocalUserSessionDestroy(callback);
+            const callback2 = jasmine.createSpy('destroyCallback2');
+            const off2 = service.onLocalUserSessionDestroy(callback2);
+            service._notifyLocalUserSessionDestroy(localUserSession, 'logout_test');
+            expect(callback).toHaveBeenCalledWith(localUserSession, 'logout_test');
+            expect(callback2).toHaveBeenCalledWith(localUserSession, 'logout_test');
+            off();
+            off2();
+        });
+
+        it('should remove the callback', () => {
+            const callback = jasmine.createSpy('destroyCallback');
+            const off = service.onLocalUserSessionDestroy(callback);
+            off();
+            const callback2 = jasmine.createSpy('destroyCallback2');
+            const off2 = service.onLocalUserSessionDestroy(callback2);
+            service._notifyLocalUserSessionDestroy(localUserSession, 'logout_test');
+            expect(callback).not.toHaveBeenCalled();
+            expect(callback2).toHaveBeenCalledWith(localUserSession, 'logout_test');
+            off2();
+        });
+    })
 });

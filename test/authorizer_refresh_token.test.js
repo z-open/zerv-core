@@ -5,6 +5,8 @@ const should = require('should');
 const jwt = require('jsonwebtoken');
 const zlog = require('zimit-zlog');
 
+const tokenBlacklistService = require('../lib/token-blacklist.service');
+
 zlog.setLogger('socketio-auth', 'NONE');
 
 describe('TEST: authorizer with auth code and refresh tokens', function() {
@@ -28,7 +30,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
     beforeEach(function(done) {
         // otherwise test might create similar tokens (based on now())
-        options.clearBlackList();
+        tokenBlacklistService.clearBlackList();
         done();
     });
 

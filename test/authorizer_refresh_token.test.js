@@ -30,7 +30,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
     beforeEach(function(done) {
         // otherwise test might create similar tokens (based on now())
-        tokenBlacklistService.clearBlackList();
+        tokenBlacklistService._clearBlackList();
         done();
     });
 

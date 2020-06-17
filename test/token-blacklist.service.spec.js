@@ -4,8 +4,6 @@ const _ = require('lodash');
 const service = require('../lib/token-blacklist.service');
 const redisService = require('../lib/redis.service');
 
-let io;
-
 describe('token-blacklist.service', () => {
     let now;
     let disposalIntervalInMins, tokenExpiresInMins;

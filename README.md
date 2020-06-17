@@ -54,15 +54,19 @@ This creates an instance of socketio that handles connection/reconnection via to
 
 Options are the following:
 
-- refresh: to provide a function that returns a token, based on a payload. There is a function by default that adds the token duration (dur) to the payload and sets the token expiration.
+- refresh: to provide a function that returns a token, based on a payload. There is a function by default that returns a JWT sign token.
 
 - claim: to provide a function that returns a claim based on a user
 
 - secret: the value to compute the jwt token if the default generation is used;
 
-- disposalInterval: value in seconds, interval between attempt to dispose expired token from the black list (get rid of expired token since they can not be reused anyway) 
+- disposalInterval: value in minutes, interval between attempt to dispose revoked token from the black list (get rid of expired token since they can not be reused anyway) 
 
-- tokenExpiresInMins: duration of the session token (long life) if the refresh option is not provided.
+- tokenExpiresInMins: duration of the session token (long life).
+
+- maxInactiveTimeInMinsForInactiveSession: duration before an inactive local   user session is destroyed (and all associated resources released) on the server. A browser might lose its socket connections which would lead the local user session to be inactive in the server. 
+A browser might disconnect temporarily due to network instability, browser being put in the background, OS standby, etc...
+If the browser reconnects quickly, the session is set back to active without the need to reload resources or cache. By default, the value is 10 minutes.
 
 - getTenantId: to provide a function which receives the payload as a parameter. This function shall return a promise that returns the tenantId. When a token is created, the tenant id will be obtained via this function and stored in the socket instance. 
 
@@ -120,46 +124,55 @@ In addition to all options listed above, we have the following:
 - api : the event name used from a socket to make the api calls handled by the apiRouter. By default, 'api'.
 
 
-
-
-
-## Example 
-```javascript
-```
-
-__Client side__:
-
-Install latest npm revision of angular-socketio.
-
-```javascript
-```
-__Server side__:
-```javascript
-```
-
 ## User Session Management
 
 __api functions__
 
-- zerv.isLocalUserSession,
-- zerv.countLocalSessionsByUserId,
-- zerv.isUserSessionServerOrigin,
+- zerv.isLocalUserSession(userSession)
+
+This returns true if the provided userSession exists on the current server.
+
+- zerv.countLocalSessionsByUserId(userId)
+
+This returns the number of active user sessions for the provided user id on the current server.
+
+- zerv.isUserSessionServerOrigin(userSession)
+
+This returns true if the userSession was created on this server.
+The session might not longer exist.
+
 - zerv.getLocalUserSessions
+
+This returns all local user sessions either active (with socket connections) or inactivate (without any socket connections)
+
+- zerv.onLocalUserSessionDestroy(callback, reason)
+
+Add a listener (callback function) and returns the a function to remove the listener.
+The listener will be provided the local user session that was destroyed and the reason.
+A local user session is destroyed after being inactive for some time in order to release resources (such as zerv subscriptions and cache). 
+
+- zerv.setTenantMaximumActiveSessionTimeout(tenantId, valueInMinute)
+
+This sets the expiration timeout for an active session before the session is automatically logged out from all participating servers.
+
+- zerv.getTenantMaximumActiveSessionTimeoutInMins(tenantId)
+
+This returns the tenant's expiration timeout value for an active session.
+By default, the value is 720 minutes or the value provided in the environment variable ZERV_MAX_ACTIVE_SESSION_TIMEOUT_IN_MINS.
 
 __Server side__
 
 A USER_SESSION event is notified to the cluster after a user succesfully connects (browser refresh, or login) or disconnects any zerv instance.
 
 ```javascript
+// the server can get notified for any new user session update from any server
 zerv.onChanges('USER_SESSION', (tenantId, userSession, notificationType) => {
-        if (notificationType === 'REMOVAL'
-            && zerv.isUserSessionServerOrigin(userSession)
-            && zerv.countLocalSessionsByUserId(userSession.userId) === 0
-        ) {
-            // ex
-            letSreleaseUserResources(tenantId, userSession.userId);
-        }
+        console.log('Session ', userSession.payload, notificationType, userSession.zervServerId);
     });
+
+zerv.onLocalUserSessionDestroy((localUserSession, reason) => {
+    letSreleaseUserResources(localUserSession.tenantId, localUserSession.userId);
+});
 ```
 __Subscribing a client to user session data__
 

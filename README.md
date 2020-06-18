@@ -180,6 +180,22 @@ In the zerv-sync module, you can read how to exploit any event on the front end.
 A publication could also be created to receive user session changes via this event. 
 A subscription would be able to receive the changes on the front end.
 
+## Cache Management
+
+The cache is activated and provided by redis if the env REDIS_ENABLED is set to true.
+It is also used to manage revoked session tokens and track user sessions in a cluster.
+
+- getRedisClient():
+    this returns the IORedis client instance
+- isClusterEnabled():
+    this returns true if the zerv server is supposed to work in cluster (redis is then enabled)
+- cacheData(key, value, options): Cache key value in redis. Options object can contain expirationInMins and prefix to prefix the key in redis.
+- removeCachedData(key, options): Delete key value from redis. Options object can contain prefix to prefix the key in redis.
+- getCachedData(key, options): get the string data for key from redis. Options object can contain prefix to prefix the key in redis.
+- getCachedBooleanValue(key, options): same as getCachedData but returns a boolean value.
+- getCachedObject(key, options): same as getCachedData but returns an object.
+
+
 ## shutdown support
 
 __shutdown(delay)__

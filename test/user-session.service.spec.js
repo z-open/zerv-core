@@ -5,7 +5,7 @@ const UUID = require('uuid');
 const zerv = require('../lib/zerv-core');
 const service = require('../lib/user-session.service');
 const tokenBlacklistService = require('../lib/token-blacklist.service');
-const redisService = require('../lib/redis.service');
+const cacheService = require('../lib/cache.service');
 
 let io;
 
@@ -95,12 +95,10 @@ describe('user-session.service', () => {
         serverInstanceId = 'idCreatedAtLaunch';
         spyOn(service, 'getServerInstanceId').and.returnValue(serverInstanceId);
 
-        spyOn(redisService, 'isRedisEnabled').and.returnValue(true);
-        spyOn(redisService, 'getRedisClient').and.returnValue({
-            setex: jasmine.createSpy('getRedisClient.setex').and.returnValues(Promise.resolve()),
-            del: jasmine.createSpy('getRedisClient.del').and.returnValues(Promise.resolve()),
-            get: jasmine.createSpy('getRedisClient.get').and.returnValues(Promise.resolve())
-        });
+        spyOn(cacheService, 'isClusterCacheEnabled').and.returnValue(true);
+        spyOn(cacheService, 'cacheData').and.returnValue(Promise.resolve());
+        spyOn(cacheService, 'removeCachedData').and.returnValue(Promise.resolve());     
+        spyOn(cacheService, 'getCachedObject').and.returnValue(Promise.resolve());
 
     });
 
@@ -163,7 +161,7 @@ describe('user-session.service', () => {
         });
 
         it('should creates a new local session only', async () => {
-            redisService.isRedisEnabled.and.returnValue(false);
+            cacheService.isClusterCacheEnabled.and.returnValue(false);
             service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
             io.sockets.sockets = [socketForUser01];
             const localUserSession = await service.connectUser(socketForUser01);
@@ -214,15 +212,55 @@ describe('user-session.service', () => {
                     lastName: 'John',
                     maxActiveDuration: 720,
                     clusterCreation: now,
-                    clusterUserSessionId: jasmine.any(String),
+                    clusterUserSessionId: 'aUuid',
                     connections: 1
                 }
             );
-            expect(redisService.getRedisClient().setex).toHaveBeenCalledWith(
-                'SESSION_browserId01', 
-                43200,
-                '{"clusterUserSessionId":"aUuid","userId":"user01","origin":"browserId01","tenantId":"corpPlus","clusterCreation":"2020-02-06T10:06:07.000Z","firstName":"Luke","lastName":"John","maxActiveDuration":720}'
+            expect(cacheService.cacheData).toHaveBeenCalledWith(
+                'browserId01', 
+                {"clusterUserSessionId":"aUuid","userId":"user01","origin":"browserId01","tenantId":"corpPlus","clusterCreation":now,"firstName":"Luke","lastName":"John","maxActiveDuration":720},
+                { prefix: 'SESSION_', expirationInMins: 720 }
             );
+        });
+
+        it('should reuse an existing cluster session and pick up the remaining active session time', async () => {    
+            const clusterCreation = moment().add(-600, 'minutes').toDate();
+            cacheService.getCachedObject.and.returnValue( {
+                clusterUserSessionId: "existingUuid",
+                userId: "user01",
+                origin: "browserId01",
+                tenantId: "corpPlus",
+                clusterCreation,
+                firstName: "Luke",
+                lastName: "John",
+                maxActiveDuration: 720
+            });
+            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
+            io.sockets.sockets = [socketForUser01];
+            const localUserSession = await service.connectUser(socketForUser01);
+            expect(service.getLocalUserSessions()).toEqual([localUserSession]);
+            expect(localUserSession.toJSON()).toEqual(
+                {
+                    id: jasmine.any(String),
+                    userId: 'user01',
+                    origin: 'browserId01',
+                    zervServerId: serverInstanceId,
+                    tenantId: 'corpPlus',
+                    creation: now,
+                    payload: {firstName: 'Luke', lastName: 'John'},
+                    revision: 0,
+                    lastUpdate: now,
+                    active: true,
+                    firstName: 'Luke',
+                    lastName: 'John',
+                    maxActiveDuration: 720,
+                    clusterCreation,
+                    clusterUserSessionId: "existingUuid",
+                    connections: 1
+                }
+            );
+            expect(cacheService.cacheData).not.toHaveBeenCalled();
+            expect(service._scheduleAutoLogout).toHaveBeenCalledWith(localUserSession);
         });
 
         it('should create a new session that notifies via zerv sync', async () => {
@@ -258,7 +296,7 @@ describe('user-session.service', () => {
         });
 
         it('should disconnect an existing session and set it inactive', async () => {
-            redisService.isRedisEnabled.and.returnValue(false);
+            cacheService.isClusterCacheEnabled.and.returnValue(false);
 
             service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
             await socketForUser01.connect();
@@ -337,7 +375,7 @@ describe('user-session.service', () => {
         beforeEach(() => {
             spyOn(service, '_scheduleAutoLogout').and.callThrough();
             spyOn(service, 'logout');
-            redisService.isRedisEnabled.and.returnValue(true);
+            cacheService.isClusterCacheEnabled.and.returnValue(true);
             service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
         });
 
@@ -490,14 +528,16 @@ describe('user-session.service', () => {
 
         it('should delete the cluster session when redis is enabled', async () => {
             await service._logoutLocally(localUser01Session, 'logout_test');
-            expect(redisService.getRedisClient).toHaveBeenCalled();
-            expect(redisService.getRedisClient().del).toHaveBeenCalledWith('SESSION_browserId01');
+            expect(cacheService.removeCachedData).toHaveBeenCalledWith(
+                'browserId01', 
+                { prefix: 'SESSION_'}
+            );
         });
 
         it('should NOT delete the cluster session when redis is disabled', async () => {
-            redisService.isRedisEnabled.and.returnValue(false);
+            cacheService.isClusterCacheEnabled.and.returnValue(false);
             await service._logoutLocally(localUser01Session, 'logout_test');
-            expect(redisService.getRedisClient().del).not.toHaveBeenCalled();
+            expect(cacheService.removeCachedData).not.toHaveBeenCalled();
         });
     });
 

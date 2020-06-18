@@ -59,17 +59,22 @@ describe('cache.service', () => {
 
     it('cacheData should cache data', async () => {
         await service.cacheData(dataKey, dataValue);
-        expect(service.getRedisClient().set).toHaveBeenCalledWith(dataKey, dataValue);
+        expect(service.getRedisClient().set).toHaveBeenCalledWith(dataKey, JSON.stringify(dataValue));
+    });
+
+    it('cacheData should cache object', async () => {
+        await service.cacheData(dataKey, dataObject);
+        expect(service.getRedisClient().set).toHaveBeenCalledWith(dataKey, JSON.stringify(dataObject));
     });
 
     it('cacheData should cache data with a prefix', async () => {
         await service.cacheData(dataKey, dataValue, {prefix: somePrefix});
-        expect(service.getRedisClient().set).toHaveBeenCalledWith('namespacenameOfCachedData', dataValue);
+        expect(service.getRedisClient().set).toHaveBeenCalledWith('namespacenameOfCachedData', JSON.stringify(dataValue));
     });
 
     it('cacheData should cache data with expirationInMins', async () => {
         await service.cacheData(dataKey, dataValue, {expirationInMins: 10});
-        expect(service.getRedisClient().setex).toHaveBeenCalledWith(dataKey, 10 * 60, dataValue);
+        expect(service.getRedisClient().setex).toHaveBeenCalledWith(dataKey, 10 * 60, JSON.stringify(dataValue));
     });
 
     it('removeCachedData should remove cached data', async () => {

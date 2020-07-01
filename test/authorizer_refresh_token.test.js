@@ -5,6 +5,8 @@ const should = require('should');
 const jwt = require('jsonwebtoken');
 const zlog = require('zimit-zlog');
 
+const tokenBlacklistService = require('../lib/token-blacklist.service');
+
 zlog.setLogger('socketio-auth', 'NONE');
 
 describe('TEST: authorizer with auth code and refresh tokens', function() {
@@ -28,7 +30,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
     beforeEach(function(done) {
         // otherwise test might create similar tokens (based on now())
-        options.clearBlackList();
+        tokenBlacklistService._clearBlackList();
         done();
     });
 
@@ -203,11 +205,6 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             });
         });
     });
-
-    // when the black listed token is about to expire, inform client to authenticate so that it can record a new refreshed token..
-
-    // could we be less intrusive and code all the login...  additional_auth...not sure...if not good enough
-
 
     describe('Http authentication', function() {
         it('should authorize and return a token', (done) => {

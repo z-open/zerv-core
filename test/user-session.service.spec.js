@@ -10,6 +10,7 @@ const cacheService = require('../lib/cache.service');
 let io;
 
 describe('user-session.service', () => {
+    
     let socketForUser01, socket2ForUser01, socketForUser02, socketForUser03;
     let now;
     let serverInstanceId;

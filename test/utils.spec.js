@@ -25,7 +25,13 @@ describe('utils', () => {
             jasmine.clock().tick(30 * 60 * 1000);
             expect(fn).toHaveBeenCalledTimes(1);   
             expect(utils._setTimeout).toHaveBeenCalledWith(fn, 1800000);
+        });
 
+        it('should timeout at the max value instead', async () => {
+            utils.setLongTimeout(fn, 100, {max: 30});
+            jasmine.clock().tick(30 * 60 * 1000);
+            expect(fn).toHaveBeenCalledTimes(1);   
+            expect(utils._setTimeout).toHaveBeenCalledWith(fn, 1800000);
         });
 
         it('should not timeout', async () => {

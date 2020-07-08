@@ -181,7 +181,7 @@ describe('user-session.service', () => {
                     active: true,
                     firstName: 'Luke',
                     lastName: 'John',
-                    maxActiveDuration: 720,
+                    maxActiveDuration: 129600,
                     clusterCreation: null,
                     clusterUserSessionId: null,
                     connections: 1
@@ -210,7 +210,7 @@ describe('user-session.service', () => {
                     active: true,
                     firstName: 'Luke',
                     lastName: 'John',
-                    maxActiveDuration: 720,
+                    maxActiveDuration: 129600,
                     clusterCreation: now,
                     clusterUserSessionId: 'aUuid',
                     connections: 1
@@ -218,8 +218,8 @@ describe('user-session.service', () => {
             );
             expect(cacheService.cacheData).toHaveBeenCalledWith(
                 'browserId01', 
-                {"clusterUserSessionId":"aUuid","userId":"user01","origin":"browserId01","tenantId":"corpPlus","clusterCreation":now,"firstName":"Luke","lastName":"John","maxActiveDuration":720},
-                { prefix: 'SESSION_', expirationInMins: 720 }
+                {"clusterUserSessionId":"aUuid","userId":"user01","origin":"browserId01","tenantId":"corpPlus","clusterCreation":now,"firstName":"Luke","lastName":"John","maxActiveDuration":129600},
+                { prefix: 'SESSION_', expirationInMins: 129600 }
             );
         });
 
@@ -322,7 +322,7 @@ describe('user-session.service', () => {
                     active: false,
                     firstName: 'Luke',
                     lastName: 'John',
-                    maxActiveDuration: 720,
+                    maxActiveDuration: 129600,
                     clusterCreation: null,
                     clusterUserSessionId: null,
                     connections: 0
@@ -625,11 +625,16 @@ describe('user-session.service', () => {
 
         it('should be a default value for invalid value', () => {
             service.setTenantMaximumActiveSessionTimeout('aTenant', -5);
-            expect(service.getTenantMaximumActiveSessionTimeoutInMins('aTenant')).toEqual(720);
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('aTenant')).toEqual(129600);
+        });
+
+        it('should be a default value when value is too big', () => {
+            service.setTenantMaximumActiveSessionTimeout('aTenant', 500000);
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('aTenant')).toEqual(129600);
         });
         
         it('should be a default value for inexisting tenant', () => {
-            expect(service.getTenantMaximumActiveSessionTimeoutInMins('carelessTenantId')).toEqual(720);
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('carelessTenantId')).toEqual(129600);
         });
     });
 

@@ -615,6 +615,14 @@ describe('user-session.service', () => {
             expect(zervWithSyncModule.notifyCreation).not.toHaveBeenCalled();
         });
 
+        it('should not release any session if the session does not exist for provided origin', async () => {
+            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.getLocalUserSession.and.returnValue(null);
+            await service.logout('unknownSessionOnLocalServer', 'logout_test');
+            expect(service._logoutLocally).not.toHaveBeenCalled();
+            expect(zervWithSyncModule.notifyCreation).not.toHaveBeenCalled();
+        });
+
     });
 
     describe('tenantMaximumActiveSessionTimeout value', () => {

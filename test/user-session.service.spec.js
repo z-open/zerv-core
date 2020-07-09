@@ -10,6 +10,7 @@ const cacheService = require('../lib/cache.service');
 let io;
 
 describe('user-session.service', () => {
+    
     let socketForUser01, socket2ForUser01, socketForUser02, socketForUser03;
     let now;
     let serverInstanceId;
@@ -181,7 +182,7 @@ describe('user-session.service', () => {
                     active: true,
                     firstName: 'Luke',
                     lastName: 'John',
-                    maxActiveDuration: 720,
+                    maxActiveDuration: 129600,
                     clusterCreation: null,
                     clusterUserSessionId: null,
                     connections: 1
@@ -210,7 +211,7 @@ describe('user-session.service', () => {
                     active: true,
                     firstName: 'Luke',
                     lastName: 'John',
-                    maxActiveDuration: 720,
+                    maxActiveDuration: 129600,
                     clusterCreation: now,
                     clusterUserSessionId: 'aUuid',
                     connections: 1
@@ -218,8 +219,8 @@ describe('user-session.service', () => {
             );
             expect(cacheService.cacheData).toHaveBeenCalledWith(
                 'browserId01', 
-                {"clusterUserSessionId":"aUuid","userId":"user01","origin":"browserId01","tenantId":"corpPlus","clusterCreation":now,"firstName":"Luke","lastName":"John","maxActiveDuration":720},
-                { prefix: 'SESSION_', expirationInMins: 720 }
+                {"clusterUserSessionId":"aUuid","userId":"user01","origin":"browserId01","tenantId":"corpPlus","clusterCreation":now,"firstName":"Luke","lastName":"John","maxActiveDuration":129600},
+                { prefix: 'SESSION_', expirationInMins: 129600 }
             );
         });
 
@@ -233,7 +234,7 @@ describe('user-session.service', () => {
                 clusterCreation,
                 firstName: "Luke",
                 lastName: "John",
-                maxActiveDuration: 720
+                maxActiveDuration: 129600
             });
             service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
             io.sockets.sockets = [socketForUser01];
@@ -253,7 +254,7 @@ describe('user-session.service', () => {
                     active: true,
                     firstName: 'Luke',
                     lastName: 'John',
-                    maxActiveDuration: 720,
+                    maxActiveDuration: 129600,
                     clusterCreation,
                     clusterUserSessionId: "existingUuid",
                     connections: 1
@@ -322,7 +323,7 @@ describe('user-session.service', () => {
                     active: false,
                     firstName: 'Luke',
                     lastName: 'John',
-                    maxActiveDuration: 720,
+                    maxActiveDuration: 129600,
                     clusterCreation: null,
                     clusterUserSessionId: null,
                     connections: 0
@@ -407,7 +408,6 @@ describe('user-session.service', () => {
             expect(service._scheduleAutoLogout).toHaveBeenCalledWith(localUser01Session);
             expect(localUser01Session.getRemainingTimeInSecs()).toEqual(0);
             expect(service.logout).toHaveBeenCalledWith(localUser01Session.origin, 'session_timeout');
-
         });
 
     })
@@ -615,6 +615,14 @@ describe('user-session.service', () => {
             expect(zervWithSyncModule.notifyCreation).not.toHaveBeenCalled();
         });
 
+        it('should not release any session if the session does not exist for provided origin', async () => {
+            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.getLocalUserSession.and.returnValue(null);
+            await service.logout('unknownSessionOnLocalServer', 'logout_test');
+            expect(service._logoutLocally).not.toHaveBeenCalled();
+            expect(zervWithSyncModule.notifyCreation).not.toHaveBeenCalled();
+        });
+
     });
 
     describe('tenantMaximumActiveSessionTimeout value', () => {
@@ -623,13 +631,18 @@ describe('user-session.service', () => {
             expect(service.getTenantMaximumActiveSessionTimeoutInMins('prudentTenantId')).toEqual(60);
         });
 
-        it('should be a default value for invalid value', () => {
+        it('should be a default max value for invalid value', () => {
             service.setTenantMaximumActiveSessionTimeout('aTenant', -5);
-            expect(service.getTenantMaximumActiveSessionTimeoutInMins('aTenant')).toEqual(720);
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('aTenant')).toEqual(129600);
+        });
+
+        it('should user default max value when value is too high', () => {
+            service.setTenantMaximumActiveSessionTimeout('aTenant', 500000);
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('aTenant')).toEqual(129600);
         });
         
-        it('should be a default value for inexisting tenant', () => {
-            expect(service.getTenantMaximumActiveSessionTimeoutInMins('carelessTenantId')).toEqual(720);
+        it('should be a default max value for inexisting tenant', () => {
+            expect(service.getTenantMaximumActiveSessionTimeoutInMins('carelessTenantId')).toEqual(129600);
         });
     });
 

@@ -30,7 +30,7 @@
     "core-transaction": "git://github.com/z-open/core-transaction#0.0.4",
     "ioredis": "4.14.1",
     "jsonwebtoken": "5.0.0",
-    "lodash": "4.17.15",
+    "lodash": "4.17.19",
     "promise": "8.0.3",
     "socket.io": "2.3.0",
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.6",

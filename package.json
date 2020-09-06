@@ -1,6 +1,6 @@
 {
   "name": "zerv-core",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Zerv core module provides authentication of socket.io connections using Auth Code and token refresh on top of JWT",
   "main": "lib/zerv-core.js",
   "keywords": [
@@ -36,7 +36,7 @@
     "socketio-jwt": "git://github.com/z-open/socketio-jwt#4.3.6",
     "uuid": "3.4.0",
     "zimit-zlog": "1.0.6",
-    "zjsonbin": "git://github.com/z-open/zjsonbin#2.0.2"
+    "zjsonbin": "git://github.com/z-open/zjsonbin#2.0.4"
   },
   "devDependencies": {
     "body-parser": "1.19.0",

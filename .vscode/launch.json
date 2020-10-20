@@ -8,12 +8,8 @@
 			"name": "Mocha Tests",
 			"program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
 			"args": [
-				"-u",
-				"tdd",
-				"--timeout",
-				"999999",
-				"--colors",
-				"${workspaceRoot}/test"
+
+				"${workspaceRoot}/test/authorizer_refresh_token.test.js"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		},

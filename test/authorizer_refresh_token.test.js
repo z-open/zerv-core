@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const zlog = require('zimit-zlog');
 
 const tokenBlacklistService = require('../lib/token-blacklist.service');
+const { fn } = require('moment');
 
 zlog.setLogger('socketio-auth', 'NONE');
 
@@ -77,9 +78,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 });
                 const token = this.token;
                 socket.on('connect', function() {
-                    socket.on('authenticated', function(refreshToken) {
+                    socket.on('authenticated', function(refreshToken, fn) {
                         should.exist(refreshToken);
                         token.should.not.eql(refreshToken);
+                        fn('ack');
                         socket.close();
                         done();
                     })
@@ -94,9 +96,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 });
                 const token = this.token;
                 socket.on('connect', function() {
-                    socket.on('authenticated', function(refreshToken) {
+                    socket.on('authenticated', function(refreshToken, fnAck) {
                         should.exist(refreshToken);
                         token.should.not.eql(refreshToken);
+                        fnAck();
                         socket.close();
 
 
@@ -123,17 +126,19 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 });
                 const token = this.token;
                 socket.on('connect', function() {
-                    socket.on('authenticated', function(refreshToken) {
+                    socket.on('authenticated', function(refreshToken, fnAck) {
                         should.exist(refreshToken);
                         token.should.not.eql(refreshToken);
+                        fnAck();
                         socket.close();
                         // now trying a new connection but with the same token
                         const socket2 = io.connect('http://localhost:9000', {
                             'forceNew': true,
                         });
                         socket2.on('connect', function() {
-                            socket2.on('authenticated', function(newRefreshedToken) {
+                            socket2.on('authenticated', function(newRefreshedToken, fnAck) {
                                 // console.log("error" + JSON.stringify(err));
+                                fnAck();
                                 socket2.close();
 
                                 // now we try to use the first refreshToken again!

@@ -12,6 +12,8 @@ const jwt = require('jsonwebtoken');
 const zlog = require('zimit-zlog');
 
 const tokenBlacklistService = require('../lib/token-blacklist.service');
+const userSessionService = require('../lib/user-session.service');
+
 let server, socketIo;
 zlog.setLogger('ZERV-CORE', 'ALL');
 
@@ -20,15 +22,12 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
     // start and stop the server
     beforeAll(function(done) {
         options = {
-            timeout: 1000, // to complete authentication. from socket connection to authentication
-            codeExpiresInSecs: 10,
-            refresh: function(decoded) {
-                return jwt.sign(decoded, this.secret, {expiresIn: 10000});
-            },
+            timeout: 1500, // to complete authentication. from socket connection to authentication
+            codeExpiresInSecs: 20,
+
             claim: function(user) {
                 return user;
             },
-            tokenExpiresInMins: 10,
             secret: 'aaafoo super sercret',
             findUserByCredentials: function(user) {
                 return new Promise(function(resolve, reject) {
@@ -49,6 +48,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             },
         };
         tokenBlacklistService._clearBlackList();
+        spyOn(userSessionService, 'getTenantMaximumInactiveSessionTimeoutInMins');
+        userSessionService.getTenantMaximumInactiveSessionTimeoutInMins.and.returnValue(2);
+
         startServer(options, done);
     });
 
@@ -59,7 +61,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
         tokenBlacklistService._clearBlackList();
     });
     afterEach((done) => {
-        // give enough time to zerv to close all sockets opened during test
+        // give enough time to zerv to close all sockets opened during a test
         setTimeout(done, 50);
     });
 
@@ -88,32 +90,45 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
         });
 
         describe('when the user is logged in', function() {
+            let authToken;
+
             beforeEach(function(done) {
                 request.post({
                     url: 'http://localhost:9000/authorize',
                     body: {'username': 'jose', 'password': 'Pa123', 'grant_type': 'login'},
                     json: true
                 }, function(err, resp, body) {
-                    this.token = body.access_token;
+                    authToken = body.access_token;
                     done();
-                }.bind(this));
+                });
             });
 
-
-            it('should do the handshake and connect and receive a different token', function(done) {
+            it('should do the handshake and connect and receive a token with different expiration values', function(done) {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                const token = this.token;
+                const authPayload = jwt.decode(authToken);
+                expect(authPayload.exp - authPayload.iat).toBe(20);
+
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
-                        expect(token).not.toBe(refreshToken);
+                        expect(authToken).not.toBe(refreshToken);
+                        const refreshedPayload = jwt.decode(refreshToken);
+                        expect(refreshedPayload.dur).toBe(120);
+                        expect(refreshedPayload.exp - refreshedPayload.iat).toBe(120);
+                        expect(refreshedPayload.iat).not.toBe(authPayload.iat);
+                        expect(refreshedPayload.exp).not.toBe(authPayload.ext);
+                        expect(refreshedPayload.jti).toBe(1);
                         fnAck();
                         socket.close();
                         done();
-                    })
-                        .emit('authenticate', {token: token});
+                    });
+                    // let's wait a sec so that the iat can be different from the auth code
+                    // but no more otherwise the authentication timeout (in options) will kick in.
+                    setTimeout(() => {
+                        socket.emit('authenticate', {token: authToken});
+                    }, 1000);
                 });
             });
 
@@ -122,11 +137,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
-                        expect(token).not.toBe(refreshToken);
+                        expect(authToken).not.toBe(refreshToken);
                         fnAck();
                         socket.close();
 
@@ -141,9 +155,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                 socket2.close();
                                 expect(err.message).toBe('Token is no longer valid');
                                 done();
-                            }).emit('authenticate', {token: token});
+                            }).emit('authenticate', {token: authToken});
                         });
-                    }).emit('authenticate', {token: token});
+                    }).emit('authenticate', {token: authToken});
                 });
             });
 
@@ -152,11 +166,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
-                        expect(token).not.toBe(refreshToken);
+                        expect(authToken).not.toBe(refreshToken);
                         fnAck();
                         socket.close();
                         // now trying a new connection but with the same token
@@ -183,7 +196,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                 });
                             }).emit('authenticate', {token: refreshToken});
                         });
-                    }).emit('authenticate', {token: token});
+                    }).emit('authenticate', {token: authToken});
                 });
             });
 
@@ -191,17 +204,16 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
-                        expect(token).not.toBe(refreshToken);
+                        expect(authToken).not.toBe(refreshToken);
                         fnAck();
                         socket.emit('logout', refreshToken);
                     }).on('logged_out', function() {
                         socket.close();
                         done();
-                    }).emit('authenticate', {token: token});
+                    }).emit('authenticate', {token: authToken});
                 });
             });
 
@@ -210,13 +222,12 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                const token = this.token;
                 let refreshedToken;
 
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
-                        expect(token).not.toBe(refreshToken);
+                        expect(authToken).not.toBe(refreshToken);
                         refreshedToken = refreshToken;
                         fnAck();
                         socket.emit('logout', refreshToken);
@@ -235,7 +246,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                 done();
                             }).emit('authenticate', {token: refreshedToken});
                         });
-                    }).emit('authenticate', {token: token});
+                    }).emit('authenticate', {token: authToken});
                 });
             });
         });
@@ -248,9 +259,14 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 body: {'username': 'jose', 'password': 'Pa123', 'grant_type': 'rest'},
                 json: true
             }, function(err, resp, body) {
-                expect(body.access_token).toBeDefined();
+                const authToken = body.access_token;
+                expect(authToken).toBeDefined();
                 expect(body.url).toBe('restServer/');
                 expect(resp.statusCode).toBe(200);
+                const payload = jwt.decode(authToken);
+                expect(payload.iat).toBeDefined();
+                expect(payload.exp).toBeDefined();
+                expect(payload.exp - payload.iat).toBe(20);
                 done();
             });
         });

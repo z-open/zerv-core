@@ -1,6 +1,4 @@
 'use strict';
-const moment = require('moment');
-const _ = require('lodash');
 const service = require('../lib/cache.service');
 
 describe('cache.service', () => {
@@ -132,5 +130,4 @@ describe('cache.service', () => {
         expect(result).toBe(false);
         expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: somePrefix});
     });
-
 });

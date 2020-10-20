@@ -15,27 +15,27 @@ describe('server-activity.service', () => {
         jasmine.clock().uninstall();
     });
 
-        it('registerNewActivy should add a new activity', () => {
-            const activity = service.registerNewActivity('doSomething');
-            expect(activity).toEqual({
-                call: 'doSomething',
-                origin: 'application',
-                params: undefined,
-                status: 'running',
-                start: now,
-                end: null,
-                done: jasmine.any(Function),
-                fail: jasmine.any(Function),
-                waitForCompletion: jasmine.any(Function),
-            });
-            const activities = service.getActivitiesInProcess();
-            expect(activities.length).toEqual(1);
+    it('registerNewActivy should add a new activity', () => {
+        const activity = service.registerNewActivity('doSomething');
+        expect(activity).toEqual({
+            call: 'doSomething',
+            origin: 'application',
+            params: undefined,
+            status: 'running',
+            start: now,
+            end: null,
+            done: jasmine.any(Function),
+            fail: jasmine.any(Function),
+            waitForCompletion: jasmine.any(Function),
         });
+        const activities = service.getActivitiesInProcess();
+        expect(activities.length).toEqual(1);
+    });
 
-        it('activy done method should complete activity', (done) => {
-            const activity = service.registerNewActivity('doSomething');
+    it('activy done method should complete activity', (done) => {
+        const activity = service.registerNewActivity('doSomething');
 
-            activity.waitForCompletion()
+        activity.waitForCompletion()
             .then(() => {
                 expect(activity).toEqual({
                     call: 'doSomething',
@@ -52,13 +52,13 @@ describe('server-activity.service', () => {
                 expect(activities.length).toEqual(0);
                 done();
             });
-            activity.done();
-        });
+        activity.done();
+    });
 
-        it('activity fail method should complete activity', (done) => {
-            const activity = service.registerNewActivity('doSomething');
+    it('activity fail method should complete activity', (done) => {
+        const activity = service.registerNewActivity('doSomething');
 
-            activity.waitForCompletion()
+        activity.waitForCompletion()
             .then(() => {
                 expect(activity).toEqual({
                     call: 'doSomething',
@@ -76,9 +76,9 @@ describe('server-activity.service', () => {
                 expect(activities.length).toEqual(0);
                 done();
             });
-            activity.fail('bad error');
-        });
-    
+        activity.fail('bad error');
+    });
+
 
     it('getActivitiesInProcess should return list of activities in progress', async () => {
         const activity1 = service.registerNewActivity('doSomething');

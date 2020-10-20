@@ -1,6 +1,5 @@
 'use strict';
 const moment = require('moment');
-const _ = require('lodash');
 const service = require('../lib/token-blacklist.service');
 const cacheService = require('../lib/cache.service');
 
@@ -16,7 +15,7 @@ describe('token-blacklist.service', () => {
 
         spyOn(cacheService, 'isClusterCacheEnabled').and.returnValue(true);
         spyOn(cacheService, 'cacheData').and.returnValue(Promise.resolve());
-        spyOn(cacheService, 'removeCachedData').and.returnValue(Promise.resolve());     
+        spyOn(cacheService, 'removeCachedData').and.returnValue(Promise.resolve());
         spyOn(cacheService, 'getCachedData').and.returnValue(Promise.resolve());
 
         disposalIntervalInMins = 120;
@@ -31,14 +30,14 @@ describe('token-blacklist.service', () => {
         jasmine.clock().uninstall();
     });
 
-    describe('scheduleTokenMaintenance function' ,() => {
+    describe('scheduleTokenMaintenance function', () => {
         it('should determine the token disposal time to set redis token keys with', async () => {
-            service.scheduleTokenMaintenance(disposalIntervalInMins, 100)
+            service.scheduleTokenMaintenance(disposalIntervalInMins, 100);
             await service.revokeToken(token);
             expect(cacheService.cacheData).toHaveBeenCalledWith(
-                token, 
+                token,
                 true,
-                { prefix: 'REVOK_TOK_', expirationInMins: 105 }
+                {prefix: 'REVOK_TOK_', expirationInMins: 105}
             );
             jasmine.clock().tick(1 * 60000);
         });
@@ -54,7 +53,6 @@ describe('token-blacklist.service', () => {
     });
 
     describe('revokeToken function', () => {
-
         it('should store a token in local memory when redis is not enabled', async () => {
             cacheService.isClusterCacheEnabled.and.returnValue(false);
             await service.revokeToken(token);
@@ -62,18 +60,17 @@ describe('token-blacklist.service', () => {
         });
 
         it('should store a token in redis', async () => {
-            service.scheduleTokenMaintenance(disposalIntervalInMins, tokenExpiresInMins)
+            service.scheduleTokenMaintenance(disposalIntervalInMins, tokenExpiresInMins);
             await service.revokeToken(token);
             expect(cacheService.cacheData).toHaveBeenCalledWith(
-                token, 
+                token,
                 true,
-                { prefix: 'REVOK_TOK_', expirationInMins: 63}
+                {prefix: 'REVOK_TOK_', expirationInMins: 63}
             );
         });
     });
 
     describe('isTokenRevoked function', () => {
-
         it('should check the token existence in local memory when redis is not enabled', async () => {
             cacheService.isClusterCacheEnabled.and.returnValue(false);
             expect(await service.isTokenRevoked(token)).toBeFalse();
@@ -85,15 +82,14 @@ describe('token-blacklist.service', () => {
             cacheService.getCachedData.and.returnValue('true');
             const result = await service.isTokenRevoked(token);
             expect(cacheService.getCachedData).toHaveBeenCalledWith(
-                token, 
-                { prefix: 'REVOK_TOK_'}
+                token,
+                {prefix: 'REVOK_TOK_'}
             );
             expect(result).toBeTrue();
         });
     });
 
     describe('_removeExpiredTokensFromBlackList function', () => {
-
         beforeEach(async () => {
             cacheService.isClusterCacheEnabled.and.returnValue(false);
             service.scheduleTokenMaintenance(1000, tokenExpiresInMins);

@@ -1,38 +1,66 @@
-const fixture = require('./fixture');
+const express = require('express');
+const http = require('http');
+const zervCore = require('../lib/zerv-core');
+
+const enableDestroy = require('server-destroy');
+const bodyParser = require('body-parser');
+
+
 const request = require('request');
 const io = require('socket.io-client');
-const should = require('should');
 const jwt = require('jsonwebtoken');
 const zlog = require('zimit-zlog');
 
 const tokenBlacklistService = require('../lib/token-blacklist.service');
-const { fn } = require('moment');
-
-zlog.setLogger('socketio-auth', 'NONE');
+let server, socketIo;
+zlog.setLogger('ZERV-CORE', 'ALL');
 
 describe('TEST: authorizer with auth code and refresh tokens', function() {
     let options;
     // start and stop the server
-    before(function(done) {
+    beforeAll(function(done) {
         options = {
+            timeout: 1000, // to complete authentication. from socket connection to authentication
+            codeExpiresInSecs: 10,
             refresh: function(decoded) {
-                return jwt.sign(decoded, this.secret, {expiresIn: 10});
+                return jwt.sign(decoded, this.secret, {expiresIn: 10000});
             },
             claim: function(user) {
                 return user;
             },
-            tokenExpiresInMins: 10
+            tokenExpiresInMins: 10,
+            secret: 'aaafoo super sercret',
+            findUserByCredentials: function(user) {
+                return new Promise(function(resolve, reject) {
+                    if (user.password !== 'Pa123') {
+                        /* eslint-disable prefer-promise-reject-errors */
+                        return reject('USER_INVALID');
+                    }
+                    resolve(
+                        {
+                            first_name: 'John',
+                            last_name: 'Doe',
+                            email: 'john@doe.com',
+                            id: 123
+                        }
 
+                    );
+                });
+            },
         };
-        fixture.start(options, done);
+        tokenBlacklistService._clearBlackList();
+        startServer(options, done);
     });
 
-    after(fixture.stop);
+    afterAll(stopServer);
 
-    beforeEach(function(done) {
+    beforeEach(() => {
         // otherwise test might create similar tokens (based on now())
         tokenBlacklistService._clearBlackList();
-        done();
+    });
+    afterEach((done) => {
+        // give enough time to zerv to close all sockets opened during test
+        setTimeout(done, 50);
     });
 
     describe('Socket authentication', function() {
@@ -78,10 +106,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 });
                 const token = this.token;
                 socket.on('connect', function() {
-                    socket.on('authenticated', function(refreshToken, fn) {
-                        should.exist(refreshToken);
-                        token.should.not.eql(refreshToken);
-                        fn('ack');
+                    socket.on('authenticated', function(refreshToken, fnAck) {
+                        expect(refreshToken).toBeDefined();
+                        expect(token).not.toBe(refreshToken);
+                        fnAck();
                         socket.close();
                         done();
                     })
@@ -97,8 +125,8 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken, fnAck) {
-                        should.exist(refreshToken);
-                        token.should.not.eql(refreshToken);
+                        expect(refreshToken).toBeDefined();
+                        expect(token).not.toBe(refreshToken);
                         fnAck();
                         socket.close();
 
@@ -111,7 +139,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                             socket2.on('unauthorized', function(err) {
                                 // console.log("error" + JSON.stringify(err));
                                 socket2.close();
-                                err.message.should.eql('Token is no longer valid');
+                                expect(err.message).toBe('Token is no longer valid');
                                 done();
                             }).emit('authenticate', {token: token});
                         });
@@ -127,8 +155,8 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 const token = this.token;
                 socket.on('connect', function() {
                     socket.on('authenticated', function(refreshToken, fnAck) {
-                        should.exist(refreshToken);
-                        token.should.not.eql(refreshToken);
+                        expect(refreshToken).toBeDefined();
+                        expect(token).not.toBe(refreshToken);
                         fnAck();
                         socket.close();
                         // now trying a new connection but with the same token
@@ -136,9 +164,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                             'forceNew': true,
                         });
                         socket2.on('connect', function() {
-                            socket2.on('authenticated', function(newRefreshedToken, fnAck) {
+                            socket2.on('authenticated', function(newRefreshedToken, fnAck2) {
                                 // console.log("error" + JSON.stringify(err));
-                                fnAck();
+                                fnAck2();
                                 socket2.close();
 
                                 // now we try to use the first refreshToken again!
@@ -149,7 +177,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                     socket3.on('unauthorized', function(err) {
                                         // console.log("error" + JSON.stringify(err));
                                         socket3.close();
-                                        err.message.should.eql('Token is no longer valid');
+                                        expect(err.message).toBe('Token is no longer valid');
                                         done();
                                     }).emit('authenticate', {token: refreshToken});
                                 });
@@ -165,9 +193,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 });
                 const token = this.token;
                 socket.on('connect', function() {
-                    socket.on('authenticated', function(refreshToken) {
-                        should.exist(refreshToken);
-                        token.should.not.eql(refreshToken);
+                    socket.on('authenticated', function(refreshToken, fnAck) {
+                        expect(refreshToken).toBeDefined();
+                        expect(token).not.toBe(refreshToken);
+                        fnAck();
                         socket.emit('logout', refreshToken);
                     }).on('logged_out', function() {
                         socket.close();
@@ -185,10 +214,11 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 let refreshedToken;
 
                 socket.on('connect', function() {
-                    socket.on('authenticated', function(refreshToken) {
-                        should.exist(refreshToken);
-                        token.should.not.eql(refreshToken);
+                    socket.on('authenticated', function(refreshToken, fnAck) {
+                        expect(refreshToken).toBeDefined();
+                        expect(token).not.toBe(refreshToken);
                         refreshedToken = refreshToken;
+                        fnAck();
                         socket.emit('logout', refreshToken);
                     }).on('logged_out', function() {
                         socket.close();
@@ -201,7 +231,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                             socket2.on('unauthorized', function(err) {
                                 // console.log("error" + JSON.stringify(err));
                                 socket2.close();
-                                err.message.should.eql('Token is no longer valid');
+                                expect(err.message).toBe('Token is no longer valid');
                                 done();
                             }).emit('authenticate', {token: refreshedToken});
                         });
@@ -218,9 +248,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 body: {'username': 'jose', 'password': 'Pa123', 'grant_type': 'rest'},
                 json: true
             }, function(err, resp, body) {
-                should.exist(body.access_token);
-                body.url.should.eql('restServer/');
-                resp.statusCode.should.eql(200);
+                expect(body.access_token).toBeDefined();
+                expect(body.url).toBe('restServer/');
+                expect(resp.statusCode).toBe(200);
                 done();
             });
         });
@@ -231,9 +261,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 body: {'username': 'jose', 'password': 'wrong', 'grant_type': 'rest'},
                 json: true
             }, function(err, resp, body) {
-                should.exist(body.code);
-                body.code.should.eql('USER_INVALID');
-                resp.statusCode.should.eql(401);
+                expect(body.code).toBeDefined();
+                expect(body.code).toBe('USER_INVALID');
+                expect(resp.statusCode).toBe(401);
                 done();
             });
         });
@@ -244,11 +274,41 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 body: {'username': 'jose', 'password': 'wrong', 'grant_type': 'unknown'},
                 json: true
             }, function(err, resp, body) {
-                should.exist(body.code);
-                body.code.should.eql('INVALID_TYPE');
-                resp.statusCode.should.eql(400);
+                expect(body.code).toBeDefined();
+                expect(body.code).toBe('INVALID_TYPE');
+                expect(resp.statusCode).toBe(400);
                 done();
             });
         });
     });
 });
+
+
+function startServer(options, callback) {
+    options.restUrl = function() {
+        return 'restServer/';
+    };
+    options.appUrl = function() {
+        return 'appServer/';
+    };
+
+    const app = express();
+    app.use(bodyParser.json());
+    server = http.createServer(app);
+    socketIo = zervCore.infrastructure(server, app, options);
+
+    server.__sockets = [];
+    server.on('connection', function(c) {
+        server.__sockets.push(c);
+    });
+    server.listen(9000, callback);
+    enableDestroy(server);
+};
+
+function stopServer(callback) {
+    socketIo.close();
+    try {
+        server.destroy();
+    } catch (er) { }
+    callback();
+};

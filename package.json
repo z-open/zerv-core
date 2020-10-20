@@ -19,9 +19,7 @@
     "url": "https://github.com/z-open/zerv-core.git"
   },
   "scripts": {
-    "test": "npm run jasmine; npm run mocha",
-    "mocha": "mocha test/authorizer_refresh_token.test.js",
-    "jasmine": "./node_modules/jasmine/bin/jasmine.js test/*.spec.js",
+    "test": "./node_modules/jasmine/bin/jasmine.js test/*.spec.js",
     "eslint": "./node_modules/eslint/bin/eslint.js lib/**/*.js test/**/*.js",
     "eslintfix": "./node_modules/eslint/bin/eslint.js --fix lib/**/*.js test/**/*.js"
   },
@@ -44,11 +42,9 @@
     "eslint-config-google": "0.14.0",
     "express": "4.17.1",
     "jasmine": "3.5.0",
-    "mocha": "7.1.2",
     "moment": "2.24.0",
     "request": "2.88.0",
     "server-destroy": "1.0.1",
-    "should": "13.2.3",
     "socket.io-client": "2.3.0"
   }
 }

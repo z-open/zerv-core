@@ -93,18 +93,27 @@
 			"sourceMaps": false,
 			"outDir": null
 		},
-		
+
 		{
-			"name": "Attach",
+			"name": "debug zerv user session",
 			"type": "node",
-			"request": "attach",
-			"port": 5858,
-			"address": "localhost",
-			"restart": false,
+			"request": "launch",
+			"program": "${workspaceRoot}/node_modules/jasmine/bin/jasmine.js",
+			"stopOnEntry": false,
+			"args": ["test/user-session.service.spec.js"],
+			"cwd": "${workspaceRoot}",
+			"preLaunchTask": null,
+			"runtimeExecutable": null,
+			"runtimeArgs": [
+				"--nolazy"
+			],
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"externalConsole": false,
 			"sourceMaps": false,
-			"outDir": null,
-			"localRoot": "${workspaceRoot}",
-			"remoteRoot": null
-		}
+			"outDir": null
+		},
+
 	]
 }

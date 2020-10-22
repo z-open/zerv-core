@@ -15,6 +15,8 @@ describe('user-session.service', () => {
     let serverInstanceId;
     let zervWithSyncModule;
     let maxInactiveTimeInMinsForInactiveSession;
+    let iat;
+    let exp;
 
     beforeEach(() => {
         now = moment('Feb 6 2020 05:06:07', 'MMM DD YYYY hh:mm:ss').toDate();
@@ -28,6 +30,10 @@ describe('user-session.service', () => {
                 sockets: []
             }
         };
+        // this is the timestamp when the fake token payload would have created by JWTwebtoken
+        iat = Math.round(now.getTime() / 1000);
+        // this is the expiration date
+        exp = iat + 24 * 60 * 60;
 
         socketForUser01 = new MockSocket({
             id: 'socketId',
@@ -35,7 +41,12 @@ describe('user-session.service', () => {
             origin: 'browserId01',
             tenantId: 'corpPlus',
             token: 'user01Token',
-            payload: {firstName: 'Luke', lastName: 'John'}, // decoded token is fake here.
+            payload: {
+                firstName: 'Luke',
+                lastName: 'John',
+                iat,
+                exp
+            },
             creation: '02/01/2020',
             server: io,
         });
@@ -46,7 +57,12 @@ describe('user-session.service', () => {
             origin: 'browserId01',
             tenantId: 'corpPlus',
             token: 'user01Token2',
-            payload: {firstName: 'Luke', lastName: 'John'},
+            payload: {
+                firstName: 'Luke',
+                lastName: 'John',
+                iat,
+                exp
+            },
             creation: '02/01/2020',
             server: io,
             connected: true,
@@ -158,36 +174,6 @@ describe('user-session.service', () => {
             spyOn(service, '_scheduleAutoLogout');
         });
 
-        it('should creates a new local session only', async () => {
-            cacheService.isClusterCacheEnabled.and.returnValue(false);
-            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
-            io.sockets.sockets = [socketForUser01];
-            const localUserSession = await service.connectUser(socketForUser01);
-            expect(socketForUser01.localUserSession).toBe(localUserSession);
-            expect(service.getLocalUserSessions()).toEqual([localUserSession]);
-            expect(localUserSession.toJSON()).toEqual(
-                {
-                    id: jasmine.any(String),
-                    userId: 'user01',
-                    origin: 'browserId01',
-                    zervServerId: serverInstanceId,
-                    tenantId: 'corpPlus',
-                    creation: now,
-                    payload: {firstName: 'Luke', lastName: 'John'},
-                    revision: 0,
-                    lastUpdate: now,
-                    active: true,
-                    firstName: 'Luke',
-                    lastName: 'John',
-                    maxActiveDuration: 129600,
-                    clusterCreation: null,
-                    clusterUserSessionId: null,
-                    connections: 1
-                }
-            );
-            expect(service._scheduleAutoLogout).toHaveBeenCalledWith(localUserSession);
-        });
-
         it('should creates a local session belonging to a cluster', async () => {
             spyOn(UUID, 'v4').and.returnValue('aUuid');
             service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
@@ -202,7 +188,12 @@ describe('user-session.service', () => {
                     zervServerId: serverInstanceId,
                     tenantId: 'corpPlus',
                     creation: now,
-                    payload: {firstName: 'Luke', lastName: 'John'},
+                    payload: {
+                        firstName: 'Luke',
+                        lastName: 'John',
+                        iat: 1580983567,
+                        exp: 1581069967
+                    },
                     revision: 0,
                     lastUpdate: now,
                     active: true,
@@ -211,12 +202,17 @@ describe('user-session.service', () => {
                     maxActiveDuration: 129600,
                     clusterCreation: now,
                     clusterUserSessionId: 'aUuid',
-                    connections: 1
+                    connections: 1,
+                    lastActivity: now,
                 }
             );
             expect(cacheService.cacheData).toHaveBeenCalledWith(
                 'browserId01',
-                {'clusterUserSessionId': 'aUuid', 'userId': 'user01', 'origin': 'browserId01', 'tenantId': 'corpPlus', 'clusterCreation': now, 'firstName': 'Luke', 'lastName': 'John', 'maxActiveDuration': 129600},
+                {
+                    'clusterUserSessionId': 'aUuid', 'userId': 'user01', 'origin': 'browserId01', 'tenantId': 'corpPlus', 'clusterCreation': now, 'firstName': 'Luke', 'lastName': 'John',
+                    'maxActiveDuration': 129600,
+                    'lastActivity': jasmine.any(Date),
+                },
                 {prefix: 'SESSION_', expirationInMins: 129600}
             );
         });
@@ -245,7 +241,12 @@ describe('user-session.service', () => {
                     zervServerId: serverInstanceId,
                     tenantId: 'corpPlus',
                     creation: now,
-                    payload: {firstName: 'Luke', lastName: 'John'},
+                    payload: {
+                        firstName: 'Luke',
+                        lastName: 'John',
+                        iat: 1580983567,
+                        exp: 1581069967
+                    },
                     revision: 0,
                     lastUpdate: now,
                     active: true,
@@ -313,7 +314,12 @@ describe('user-session.service', () => {
                     zervServerId: serverInstanceId,
                     tenantId: 'corpPlus',
                     creation: beforeNow,
-                    payload: {firstName: 'Luke', lastName: 'John'},
+                    payload: {
+                        firstName: 'Luke',
+                        lastName: 'John',
+                        iat: 1580983567,
+                        exp: 1581069967
+                    },
                     revision: 1,
                     lastUpdate: now,
                     active: false,
@@ -322,7 +328,10 @@ describe('user-session.service', () => {
                     maxActiveDuration: 129600,
                     clusterCreation: null,
                     clusterUserSessionId: null,
-                    connections: 0
+                    connections: 0,
+                    lastActivity: jasmine.any(Date),
+                    clusterCreation: jasmine.any(Date),
+                    clusterUserSessionId: jasmine.any(String),
                 }
             );
         });
@@ -505,9 +514,12 @@ describe('user-session.service', () => {
         it('should log out all sockets related to the logged out session and blacklist their token to prevent reuse', async () => {
             await service._logoutLocally(localUser01Session, 'logout_test');
             expect(socketForUser01.emit).toHaveBeenCalledWith('logged_out', 'logout_test');
-            expect(tokenBlacklistService.revokeToken).toHaveBeenCalledWith('user01Token');
             expect(socket2ForUser01.emit).toHaveBeenCalledWith('logged_out', 'logout_test');
-            expect(tokenBlacklistService.revokeToken).toHaveBeenCalledWith('user01Token2');
+
+            expect(tokenBlacklistService.revokeToken.calls.allArgs()).toEqual([
+                ['user01Token', 1581069967],
+                ['user01Token2', 1581069967]
+            ]);
         });
 
         it('should NOT logout sockets or blacklist tokens of other user sessions', async () => {
@@ -523,12 +535,6 @@ describe('user-session.service', () => {
                 'browserId01',
                 {prefix: 'SESSION_'}
             );
-        });
-
-        it('should NOT delete the cluster session when redis is disabled', async () => {
-            cacheService.isClusterCacheEnabled.and.returnValue(false);
-            await service._logoutLocally(localUser01Session, 'logout_test');
-            expect(cacheService.removeCachedData).not.toHaveBeenCalled();
         });
     });
 

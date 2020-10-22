@@ -11,7 +11,7 @@ const io = require('socket.io-client');
 const jwt = require('jsonwebtoken');
 const zlog = require('zimit-zlog');
 
-const tokenBlacklistService = require('../lib/token-blacklist.service');
+const cacheService = require('../lib/cache.service');
 const userSessionService = require('../lib/user-session.service');
 
 let server, socketIo;
@@ -24,6 +24,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
         options = {
             timeout: 1500, // to complete authentication. from socket connection to authentication
             codeExpiresInSecs: 20,
+            tokenExpiresInMins: 2, // this when the token needs to be refreshed
 
             claim: function(user) {
                 return user;
@@ -47,9 +48,12 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 });
             },
         };
-        tokenBlacklistService._clearBlackList();
-        spyOn(userSessionService, 'getTenantMaximumInactiveSessionTimeoutInMins');
-        userSessionService.getTenantMaximumInactiveSessionTimeoutInMins.and.returnValue(2);
+        cacheService._clearLocalCache();
+        // spyOn(userSessionService, 'getTenantMaximumInactiveSessionTimeoutInMins');
+        // userSessionService.getTenantMaximumInactiveSessionTimeoutInMins.and.returnValue(2);
+
+        spyOn(userSessionService, 'getTenantMaximumActiveSessionTimeoutInMins');
+        userSessionService.getTenantMaximumActiveSessionTimeoutInMins.and.returnValue(24 * 60);
 
         startServer(options, done);
     });
@@ -58,7 +62,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
     beforeEach(() => {
         // otherwise test might create similar tokens (based on now())
-        tokenBlacklistService._clearBlackList();
+        cacheService._clearLocalCache();
     });
     afterEach((done) => {
         // give enough time to zerv to close all sockets opened during a test
@@ -116,8 +120,11 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                         expect(authToken).not.toBe(refreshToken);
                         const refreshedPayload = jwt.decode(refreshToken);
                         expect(refreshedPayload.dur).toBe(120);
-                        expect(refreshedPayload.exp - refreshedPayload.iat).toBe(120);
-                        expect(refreshedPayload.iat).not.toBe(authPayload.iat);
+                        // the active session duration is limited for this tenant to 24 hours
+                        expect(refreshedPayload.exp - refreshedPayload.iat).toBe(24 * 60 * 60);
+                        // the timestamp of the authCode would be the same for all subsequent token
+                        // but the exp date will be based on the active session timeout
+                        expect(refreshedPayload.iat).toBe(authPayload.iat);
                         expect(refreshedPayload.exp).not.toBe(authPayload.ext);
                         expect(refreshedPayload.jti).toBe(1);
                         fnAck();
@@ -128,7 +135,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                     // but no more otherwise the authentication timeout (in options) will kick in.
                     setTimeout(() => {
                         socket.emit('authenticate', {token: authToken});
-                    }, 1000);
+                    }, 1100);
                 });
             });
 
@@ -190,13 +197,21 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                     socket3.on('unauthorized', function(err) {
                                         // console.log("error" + JSON.stringify(err));
                                         socket3.close();
-                                        expect(err.message).toBe('Token is no longer valid');
+                                        expect(err.message).toBe('Connection initialization error');
+                                        // the origin was incorrect no session was not found
+                                        expect(err.data.code).toBe('inactive_session_timeout_or_session_not_found');
                                         done();
-                                    }).emit('authenticate', {token: refreshToken});
+                                    });
+                                    // when socket3 might not be coming from the same origin (hacker?)
+                                    socket3.emit('authenticate', {token: refreshToken, origin: 'someotherPc'});
                                 });
-                            }).emit('authenticate', {token: refreshToken});
+                            });
+                        // when socket2 connect with the auth code, it will receive a refresh token
+                        // this is the token that will be used to track the origin of the connection which is the browser.
+                            socket2.emit('authenticate', {token: refreshToken, origin: refreshToken});
                         });
-                    }).emit('authenticate', {token: authToken});
+                    });
+                    socket.emit('authenticate', {token: authToken});
                 });
             });
 

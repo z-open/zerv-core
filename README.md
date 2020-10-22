@@ -54,15 +54,11 @@ This creates an instance of socketio that handles connection/reconnection via to
 
 Options are the following:
 
-- refresh: to provide a function that returns a token, based on a payload. There is a function by default that returns a JWT sign token.
-
 - claim: to provide a function that returns a claim based on a user
 
 - secret: the value to compute the jwt token if the default generation is used;
 
-- disposalInterval: value in minutes, interval between attempt to dispose revoked token from the black list (get rid of expired token since they can not be reused anyway) 
-
-- tokenExpiresInMins: duration of the session token (long life).
+- tokenExpiresInMins: duration of the session token (long life) before it is refreshed.
 
 - maxInactiveTimeInMinsForInactiveSession: duration before an inactive local   user session is destroyed (and all associated resources released) on the server. A browser might lose its socket connections which would lead the local user session to be inactive in the server. 
 A browser might disconnect temporarily due to network instability, browser being put in the background, OS standby, etc...
@@ -154,11 +150,22 @@ A local user session is destroyed after being inactive for some time in order to
 - zerv.setTenantMaximumActiveSessionTimeout(tenantId, valueInMinute)
 
 This sets the expiration timeout for an active session before the session is automatically logged out from all participating servers.
+the jwt token is limited by this value which cannot be extended.
 
 - zerv.getTenantMaximumActiveSessionTimeoutInMins(tenantId)
 
 This returns the tenant's expiration timeout value for an active session.
-By default, the value is 720 minutes or the value provided in the environment variable ZERV_MAX_ACTIVE_SESSION_TIMEOUT_IN_MINS.
+By default, the value corresponds to 90 days or the value provided in the environment variable ZERV_MAX_ACTIVE_SESSION_TIMEOUT_IN_MINS.
+
+- zerv.setTenantMaximumInactiveSessionTimeout(tenantId, valueInMinute)
+
+This sets the expiration timeout for an active session before the session is automatically logged out from all participating servers.
+
+- zerv.getTenantMaximumInactiveSessionTimeoutInMins(tenantId)
+
+This returns the tenant's expiration timeout value for an inactive session.
+The zerv client sends a notification when the user is active in the UI. If the client is closed (browser or tab closed) or disconnected, the session will still be valid up to the duration of this timeout value.
+By default, the value is 720 minutes or the value provided in the environment variable ZERV_MAX_INACTIVE_SESSION_TIMEOUT_IN_MINS.
 
 __Server side__
 

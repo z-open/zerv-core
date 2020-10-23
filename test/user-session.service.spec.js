@@ -14,7 +14,7 @@ describe('user-session.service', () => {
     let now;
     let serverInstanceId;
     let zervWithSyncModule;
-    let maxInactiveTimeInMinsForInactiveSession;
+    let inactiveLocalUserSessionTimeoutInMins;
     let iat;
     let exp;
 
@@ -23,7 +23,7 @@ describe('user-session.service', () => {
         jasmine.clock().install();
         jasmine.clock().mockDate(now);
 
-        maxInactiveTimeInMinsForInactiveSession = 5;
+        inactiveLocalUserSessionTimeoutInMins = 5;
 
         io = {
             sockets: {
@@ -125,20 +125,20 @@ describe('user-session.service', () => {
     describe('init function', () => {
         it('should schedule the user session maintenance', () => {
             spyOn(service, '_scheduleUserSessionMaintenance');
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
-            expect(service._scheduleUserSessionMaintenance).toHaveBeenCalledWith(maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
+            expect(service._scheduleUserSessionMaintenance).toHaveBeenCalledWith(inactiveLocalUserSessionTimeoutInMins);
         });
 
         it('should publish the local session user and listen to logout event from other servers', () => {
             spyOn(service, '_scheduleUserSessionMaintenance');
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             expect(zervWithSyncModule.onChanges).toHaveBeenCalledWith('USER_SESSION_LOGGED_OUT', service._handleLogoutNotification);
             expect(zervWithSyncModule.publish).toHaveBeenCalledWith( 'user-sessions.sync', jasmine.any(Function), 'USER_SESSION');
         });
 
         it('should NOT publish the local session user and listen to logout event from other servers', () => {
             spyOn(service, '_scheduleUserSessionMaintenance');
-            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
             expect(zerv.onChanges).toBeUndefined();
             expect(zerv.publish).toBeUndefined();
         });
@@ -148,7 +148,7 @@ describe('user-session.service', () => {
         it('should delete inactive session after a time of inactivity', async () => {
             spyOn(service, '_destroyLocalUserSession');
             spyOn(service, '_removeAllInactiveLocalUserSessions').and.callThrough();
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
             const localUser01Session = socketForUser01.localUserSession;
             await socketForUser02.connect();
@@ -176,7 +176,7 @@ describe('user-session.service', () => {
 
         it('should creates a local session belonging to a cluster', async () => {
             spyOn(UUID, 'v4').and.returnValue('aUuid');
-            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
             io.sockets.sockets = [socketForUser01];
             const localUserSession = await service.connectUser(socketForUser01);
             expect(service.getLocalUserSessions()).toEqual([localUserSession]);
@@ -229,7 +229,7 @@ describe('user-session.service', () => {
                 lastName: 'John',
                 maxActiveDuration: 129600
             });
-            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
             io.sockets.sockets = [socketForUser01];
             const localUserSession = await service.connectUser(socketForUser01);
             expect(service.getLocalUserSessions()).toEqual([localUserSession]);
@@ -263,7 +263,7 @@ describe('user-session.service', () => {
         });
 
         it('should create a new session that notifies via zerv sync', async () => {
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             io.sockets.sockets = [socketForUser01];
             const localUserSession = await service.connectUser(socketForUser01);
 
@@ -278,7 +278,7 @@ describe('user-session.service', () => {
         });
 
         it('should not create a new session but increase number of connections to the existing one', async () => {
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             io.sockets.sockets = [socketForUser01];
             const session = await service.connectUser(socketForUser01);
             expect(session.connections).toEqual(1);
@@ -296,7 +296,7 @@ describe('user-session.service', () => {
         it('should disconnect an existing session and set it inactive', async () => {
             cacheService.isClusterCacheEnabled.and.returnValue(false);
 
-            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
             socketForUser01.connected = false;
             const beforeNow = now;
@@ -337,7 +337,7 @@ describe('user-session.service', () => {
         });
 
         it('should disconnect an existing session but NOT notify any user session removal', async () => {
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
             jasmine.clock().tick(10000);
             socketForUser01.connected = false;
@@ -346,7 +346,7 @@ describe('user-session.service', () => {
         });
 
         it('should reconnect a disconnected session and update its status and timestamp', async () => {
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
             const localUser01Session = socketForUser01.localUserSession;
             jasmine.clock().tick(1000);
@@ -361,8 +361,8 @@ describe('user-session.service', () => {
         });
 
         it('should NOT disconnect an existing session but keep it active and reduce the number of connections', async () => {
-            const maxInactiveTimeInMinsForInactiveSession = 2;
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            const inactiveLocalUserSessionTimeoutInMins = 2;
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
             const session = socketForUser01.localUserSession;
             await socket2ForUser01.connect();
@@ -382,7 +382,7 @@ describe('user-session.service', () => {
             spyOn(service, '_scheduleAutoLogout').and.callThrough();
             spyOn(service, 'logout');
             cacheService.isClusterCacheEnabled.and.returnValue(true);
-            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
         });
 
         it('should auto log out user session based on maximum session timeout', async () => {
@@ -422,7 +422,7 @@ describe('user-session.service', () => {
         });
 
         it('should remove inactive local session that has been inactive for sometime', async () => {
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
             await socketForUser02.connect();
             // jasmine.clock().tick(50 * 60000);
@@ -448,7 +448,7 @@ describe('user-session.service', () => {
 
         beforeEach(async () => {
             spyOn(service, '_logoutLocally');
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             io.sockets.sockets = [socketForUser01, socketForUser02];
             localUserSession = await service.connectUser(socketForUser01);
         });
@@ -494,7 +494,7 @@ describe('user-session.service', () => {
             spyOn(service, '_destroyLocalUserSession');
             spyOn(tokenBlacklistService, 'revokeToken');
 
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
 
             await socketForUser01.connect();
             await socket2ForUser01.connect();
@@ -542,7 +542,7 @@ describe('user-session.service', () => {
         let localUser01Session, localUser02Session;
         beforeEach(async () => {
             spyOn(service, '_notifyLocalUserSessionDestroy');
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
 
             await socketForUser01.connect();
             await socket2ForUser01.connect();
@@ -589,7 +589,7 @@ describe('user-session.service', () => {
         });
 
         it('should log out the session at the origin provided and notify to other servers', async () => {
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             await service.logout(localUserSession.origin, 'logout_test');
             expect(service._logoutLocally).toHaveBeenCalledWith(localUserSession, 'logout_test');
 
@@ -604,7 +604,7 @@ describe('user-session.service', () => {
         });
 
         it('should log out the session at the origin provided and NOT notify when sync module is not used', async () => {
-            service.init(zerv, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
             await service.logout(localUserSession.origin, 'logout_test');
             expect(service._logoutLocally).toHaveBeenCalledWith(localUserSession, 'logout_test');
             expect(zervWithSyncModule.publish).not.toHaveBeenCalled();
@@ -612,7 +612,7 @@ describe('user-session.service', () => {
         });
 
         it('should not release any session if the session does not exist for provided origin', async () => {
-            service.init(zervWithSyncModule, io, maxInactiveTimeInMinsForInactiveSession);
+            service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             service.getLocalUserSession.and.returnValue(null);
             await service.logout('unknownSessionOnLocalServer', 'logout_test');
             expect(service._logoutLocally).not.toHaveBeenCalled();

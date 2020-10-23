@@ -60,9 +60,9 @@ Options are the following:
 
 - tokenRefreshIntervalInMins: Tokens will be refreshed based on this interval
 
-- maxInactiveTimeInMinsForInactiveSession: duration before an inactive local   user session is destroyed (and all associated resources released) on the server. A browser might lose its socket connections which would lead the local user session to be inactive in the server. 
+- inactiveLocalUserSessionTimeoutInMins: duration before an inactive local   user session is destroyed (and all associated resources released) on the server. A browser might lose its socket connections which would lead the local user session to be inactive in the server. 
 A browser might disconnect temporarily due to network instability, browser being put in the background, OS standby, etc...
-If the browser reconnects quickly, the session is set back to active without the need to reload resources or cache. By default, the value is 10 minutes.
+If the browser reconnects quickly, the session is set back to active without the need to reload resources or cache. By default, the value is 5 minutes.
 
 - getTenantId: to provide a function which receives the payload as a parameter. This function shall return a promise that returns the tenantId. When a token is created, the tenant id will be obtained via this function and stored in the socket instance. 
 

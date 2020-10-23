@@ -24,7 +24,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
         options = {
             timeout: 1500, // to complete authentication. from socket connection to authentication
             codeExpiresInSecs: 20,
-            tokenExpiresInMins: 2, // this when the token needs to be refreshed
+            tokenRefreshIntervalInMins: 2, // this is when the token will get refreshed
 
             claim: function(user) {
                 return user;
@@ -48,7 +48,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 });
             },
         };
-        cacheService._clearLocalCache();
+        cacheService._disableLocalCacheFilePersistence();
         // spyOn(userSessionService, 'getTenantMaximumInactiveSessionTimeoutInMins');
         // userSessionService.getTenantMaximumInactiveSessionTimeoutInMins.and.returnValue(2);
 

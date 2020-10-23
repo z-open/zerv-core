@@ -56,9 +56,9 @@ Options are the following:
 
 - claim: to provide a function that returns a claim based on a user
 
-- secret: the value to compute the jwt token if the default generation is used;
+- secret: the value to compute the jwt token if the default generation is used
 
-- tokenExpiresInMins: duration of the session token (long life) before it is refreshed.
+- tokenRefreshIntervalInMins: Tokens will be refreshed based on this interval
 
 - maxInactiveTimeInMinsForInactiveSession: duration before an inactive local   user session is destroyed (and all associated resources released) on the server. A browser might lose its socket connections which would lead the local user session to be inactive in the server. 
 A browser might disconnect temporarily due to network instability, browser being put in the background, OS standby, etc...

@@ -203,7 +203,8 @@ describe('user-session.service', () => {
                     clusterCreation: now,
                     clusterUserSessionId: 'aUuid',
                     connections: 1,
-                    lastActivity: now,
+                    lastUserActivity: now,
+                    lastUserActivityStatus: 'NEW SESSION'
                 }
             );
             expect(cacheService.cacheData).toHaveBeenCalledWith(
@@ -211,7 +212,8 @@ describe('user-session.service', () => {
                 {
                     'clusterUserSessionId': 'aUuid', 'userId': 'user01', 'origin': 'browserId01', 'tenantId': 'corpPlus', 'clusterCreation': now, 'firstName': 'Luke', 'lastName': 'John',
                     'maxActiveDuration': 129600,
-                    'lastActivity': jasmine.any(Date),
+                    'lastUserActivity': jasmine.any(Date),
+                    'lastUserActivityStatus': 'NEW SESSION'
                 },
                 {prefix: 'SESSION_', expirationInMins: 129600}
             );
@@ -329,7 +331,8 @@ describe('user-session.service', () => {
                     clusterCreation: null,
                     clusterUserSessionId: null,
                     connections: 0,
-                    lastActivity: jasmine.any(Date),
+                    lastUserActivity: jasmine.any(Date),
+                    lastUserActivityStatus: 'NEW SESSION',
                     clusterCreation: jasmine.any(Date),
                     clusterUserSessionId: jasmine.any(String),
                 }

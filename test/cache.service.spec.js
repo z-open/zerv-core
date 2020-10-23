@@ -115,6 +115,21 @@ describe('cache.service', () => {
             });
         });
 
+        it('set should replace data without losing the expiration', async () => {
+            localCache.setex('myKey', 5000, 'theValue');
+            const exp = moment(now);
+            exp.add(5000, 'seconds');
+            localCache.set('myKey', 'theValueEdited');
+            expect(localCache.persistCache).toHaveBeenC
+            expect(localCache.persistCache).toHaveBeenCalledTimes(2);
+            expect(localCache.data).toEqual({
+                myKey: {
+                    val: 'theValueEdited',
+                    exp: exp.toDate()
+                }
+            });
+        });
+
         it('del should remove a key and its data immediately', async () => {
             localCache.set('myKey', 'theValue');
             localCache.del('myKey');

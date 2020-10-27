@@ -24,7 +24,7 @@ describe('token-blacklist.service', () => {
 
 
     describe('revokeToken function', () => {
-        it('should store a token in redis', async () => {
+        it('should store a valid token in the cache', async () => {
             // this is the way jsonwebtoken compute the iat which is saved in the token payload
             const iat = Math.round(now.getTime() / 1000);
             // and expiration date
@@ -35,6 +35,28 @@ describe('token-blacklist.service', () => {
                 true,
                 {prefix: 'REVOK_TOK_', expirationInMins: 63}
             );
+        });
+
+        it('should store a token in the cache for a minute even though it is very close to expire', async () => {
+            // this is the way jsonwebtoken compute the iat which is saved in the token payload
+            const iat = Math.round(now.getTime() / 1000);
+            // and expiration date
+            const exp = iat + 1;
+            await service.revokeToken(token, exp);
+            expect(cacheService.cacheData).toHaveBeenCalledWith(
+                token,
+                true,
+                {prefix: 'REVOK_TOK_', expirationInMins: 1}
+            );
+        });
+
+        it('should NOT store an expired token in the cache', async () => {
+            // this is the way jsonwebtoken compute the iat which is saved in the token payload
+            const iat = Math.round(now.getTime() / 1000);
+            // and expiration date in the past
+            const exp = iat - 10;
+            await service.revokeToken(token, exp);
+            expect(cacheService.cacheData).not.toHaveBeenCalled();
         });
     });
 

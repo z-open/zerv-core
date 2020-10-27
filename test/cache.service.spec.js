@@ -120,7 +120,6 @@ describe('cache.service', () => {
             const exp = moment(now);
             exp.add(5000, 'seconds');
             localCache.set('myKey', 'theValueEdited');
-            expect(localCache.persistCache).toHaveBeenC
             expect(localCache.persistCache).toHaveBeenCalledTimes(2);
             expect(localCache.data).toEqual({
                 myKey: {
@@ -137,7 +136,7 @@ describe('cache.service', () => {
             expect(localCache.data).toEqual({});
         });
 
-        it('clearAll should remove all datat', async () => {
+        it('clearAll should remove all data', async () => {
             localCache.set('myKey', 'theValue');
             localCache.clearAll();
             expect(localCache.persistCache).toHaveBeenCalledTimes(1);

@@ -8,12 +8,8 @@
 			"name": "Mocha Tests",
 			"program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
 			"args": [
-				"-u",
-				"tdd",
-				"--timeout",
-				"999999",
-				"--colors",
-				"${workspaceRoot}/test"
+
+				"${workspaceRoot}/test/authorizer_refresh_token.test.js"
 			],
 			"internalConsoleOptions": "openOnSessionStart"
 		},
@@ -22,26 +18,6 @@
 			"type": "node",
 			"request": "launch",
 			"program": "${workspaceRoot}/lib/index.js",
-			"stopOnEntry": false,
-			"args": [],
-			"cwd": "${workspaceRoot}",
-			"preLaunchTask": null,
-			"runtimeExecutable": null,
-			"runtimeArgs": [
-				"--nolazy"
-			],
-			"env": {
-				"NODE_ENV": "development"
-			},
-			"externalConsole": false,
-			"sourceMaps": false,
-			"outDir": null
-		},
-		{
-			"name": "debug mocha",
-			"type": "node",
-			"request": "launch",
-			"program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
 			"stopOnEntry": false,
 			"args": [],
 			"cwd": "${workspaceRoot}",
@@ -97,18 +73,47 @@
 			"sourceMaps": false,
 			"outDir": null
 		},
-		
 		{
-			"name": "Attach",
+			"name": "debug zerv authorize",
 			"type": "node",
-			"request": "attach",
-			"port": 5858,
-			"address": "localhost",
-			"restart": false,
+			"request": "launch",
+			"program": "${workspaceRoot}/node_modules/jasmine/bin/jasmine.js",
+			"stopOnEntry": false,
+			"args": ["test/authorizer_refresh_token.spec.js"],
+			"cwd": "${workspaceRoot}",
+			"preLaunchTask": null,
+			"runtimeExecutable": null,
+			"runtimeArgs": [
+				"--nolazy"
+			],
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"externalConsole": false,
 			"sourceMaps": false,
-			"outDir": null,
-			"localRoot": "${workspaceRoot}",
-			"remoteRoot": null
-		}
+			"outDir": null
+		},
+
+		{
+			"name": "debug zerv user session",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceRoot}/node_modules/jasmine/bin/jasmine.js",
+			"stopOnEntry": false,
+			"args": ["test/user-session.service.spec.js"],
+			"cwd": "${workspaceRoot}",
+			"preLaunchTask": null,
+			"runtimeExecutable": null,
+			"runtimeArgs": [
+				"--nolazy"
+			],
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"externalConsole": false,
+			"sourceMaps": false,
+			"outDir": null
+		},
+
 	]
 }

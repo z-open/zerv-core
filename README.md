@@ -141,7 +141,19 @@ The session might not longer exist.
 
 This returns all local user sessions either active (with socket connections) or inactivate (without any socket connections)
 
-- zerv.onLocalUserSessionDestroy(callback, reason)
+- zerv.onLocalUserSessionDisconnected(callback)
+
+Add a listener (callback function) and returns the a function to remove the listener.
+The listener will be provided the local user session, the connection id, the reason for disconnection and the socket.
+
+Causes of disconnection are usually:
+    network connection loss,
+    user logs out,
+    user refreshes browser when the connection is established,
+    user laptop goes to stand by,
+    client application fails to signal its stay alive signal due to overwhelming amount of processing in the browser.
+
+- zerv.onLocalUserSessionDestroy(callback)
 
 Add a listener (callback function) and returns the a function to remove the listener.
 The listener will be provided the local user session that was destroyed and the reason.

@@ -141,18 +141,6 @@ The session might not longer exist.
 
 This returns all local user sessions either active (with socket connections) or inactivate (without any socket connections)
 
-- zerv.onLocalUserSessionDisconnected(callback)
-
-Add a listener (callback function) and returns the a function to remove the listener.
-The listener will be provided the local user session, the connection id, the reason for disconnection and the socket.
-
-Causes of disconnection are usually:
-    network connection loss,
-    user logs out,
-    user refreshes browser when the connection is established,
-    user laptop goes to stand by,
-    client application fails to signal its stay alive signal due to overwhelming amount of processing in the browser.
-
 - zerv.onLocalUserSessionDestroy(callback)
 
 Add a listener (callback function) and returns the a function to remove the listener.
@@ -201,19 +189,58 @@ A subscription would be able to receive the changes on the front end.
 
 ## Cache Management
 
-The cache is activated and provided by redis if the env REDIS_ENABLED is set to true.
-It is also used to manage revoked session tokens and track user sessions in a cluster.
+Zerv can store key/value pairs in a local or enterprise shared cache.
+The cache is used to manage revoked session tokens and track user sessions in a cluster.
+
+There are 2 available cache implementations:
+- A redis based implementation when the environment variable REDIS_ENABLED is set to true.
+- A in-memory/file persisted based implementation when redis is not enabled.
+
+Cache options object can received the following settings:
+- options.prefix prefixes key names with a text value internally.
+- options.expirationInMins is the expiration time for the cache setter functions.
+
+The following functions are available:
 
 - getRedisClient():
-    this returns the IORedis client instance
-- isClusterEnabled():
-    this returns true if the zerv server is supposed to work in cluster (redis is then enabled)
-- cacheData(key, value, options): Cache key value in redis. Options object can contain expirationInMins and prefix to prefix the key in redis.
-- removeCachedData(key, options): Delete key value from redis. Options object can contain prefix to prefix the key in redis.
-- getCachedData(key, options): get the string data for key from redis. Options object can contain prefix to prefix the key in redis.
-- getCachedBooleanValue(key, options): same as getCachedData but returns a boolean value.
-- getCachedObject(key, options): same as getCachedData but returns an object.
 
+    this returns the IORedis client instance
+
+- isClusterEnabled():
+
+    this returns true if the zerv server is supposed to work in cluster (redis is then enabled)
+
+- cacheData(key, value, options): 
+
+    Cache key value in redis. Options object can contain expirationInMins and prefix to prefix the key in redis.
+
+- removeCachedData(key, options): 
+
+    Delete key value from redis. Options object can contain prefix to prefix the key in redis.
+
+- getCachedData(key, options): 
+
+    get the string data for key from redis. Options object can contain prefix to prefix the key in redis.
+
+- getCachedBooleanValue(key, options): 
+
+    same as getCachedData but returns a boolean value.
+
+- getCachedObject(key, options): 
+    
+    same as getCachedData but returns an object.
+
+- getCachedObjects(keys, options): 
+    
+    returns object corresponding the supplied keys.
+
+- getCachedKeys(searchText, options): 
+    
+    returns all keys starting with searchText
+
+- getCachedObjectsWithKeyNameBeginning(searchText, options): 
+    
+    returns all objects whose keys start with searchText
 
 ## shutdown support
 
@@ -328,10 +355,7 @@ __Auth Code and token access__
 
 * After calling the login api, a auth code is passed back to the client via https. Then client will redirect to app url exposing the auth code. It will expire in seconds but still could be stolen.
  
-* Tokens are communicated via the websocket over https. However, token might be stored on the client to allow reconnection in case of refresh. If someone could extract the token from the client (would need access the machine or shell), it can be used to make a new connection on a new client which would prevent the original owner to reconnect.
-
-Solution could be to find a way to confirm that the new connection is issued from the same machine... (Ip might not be the best solution, as they are dynamically provided, and public ip is shared by multiple clients on a network. Drastic change of ip could be detected (different location))
-
+* Tokens are communicated via the websocket over https. However, token might be stored on the client to allow reconnection in case of refresh. If someone could extract the token from the client (would need access the machine or shell), it can be used to make a new connection on a new client which would prevent the original owner to reconnect. Origin of the token could add an extra level of security.
 
 __Scalling Right__:
 

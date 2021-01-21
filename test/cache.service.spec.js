@@ -3,20 +3,25 @@ const moment = require('moment');
 const service = require('../lib/cache.service');
 
 describe('cache.service', () => {
-    let dataKey, somePrefix, dataValue, dataObject;
+    let dataKey, tenantIdUsedAsPrefix, dataValue, dataKey2, dataObject, dataObject2;
     beforeEach(() => {
         process.env.REDIS_ENABLED = true;
-        dataKey = 'nameOfCachedData';
+        dataKey = 'florida_member';
+        dataKey2 = 'florida_member2';
         dataValue = 123;
         dataObject = {id: 'd234a', name: 'King'};
-        somePrefix = 'namespace';
+        dataObject2 = {id: 'z4323', name: 'Lord'};
+
+        tenantIdUsedAsPrefix = 'superTenantId';
 
         spyOn(service, 'getRedisClient').and.callThrough();
         spyOn(service, '_getCacheImpl').and.returnValue({
             setex: jasmine.createSpy('_getCacheImpl.setex').and.returnValues(Promise.resolve()),
             set: jasmine.createSpy('_getCacheImpl.set').and.returnValues(Promise.resolve()),
             del: jasmine.createSpy('_getCacheImpl.del').and.returnValues(Promise.resolve()),
-            get: jasmine.createSpy('_getCacheImpl.get').and.returnValues(Promise.resolve())
+            get: jasmine.createSpy('_getCacheImpl.get').and.returnValues(Promise.resolve()),
+            mget: jasmine.createSpy('_getCacheImpl.mget').and.returnValues(Promise.resolve()),
+            scanStream: jasmine.createSpy('_getCacheImpl.scanStream').and.callThrough()
         });
     });
 
@@ -35,7 +40,7 @@ describe('cache.service', () => {
             expect(service.getRedisClient()).toBe(cached);
         });
 
-        it('getRedisClient should return the cached client', async () => {
+        it('getRedisClient should return null when redis is disabled', async () => {
             process.env.REDIS_ENABLED = false;
             const client = service.getRedisClient();
             expect(client).toBeNull();
@@ -43,11 +48,11 @@ describe('cache.service', () => {
     });
 
     describe('isClusterCacheEnabled function', () => {
-        it('should return true', async () => {
+        it('should return true when redis is enabled', async () => {
             expect(service.isClusterCacheEnabled()).toBeTrue();
         });
 
-        it('should return the cached client', async () => {
+        it('should return false when redis is disabled', async () => {
             process.env.REDIS_ENABLED = false;
             expect(service.isClusterCacheEnabled()).toBeFalse();
         });
@@ -177,8 +182,8 @@ describe('cache.service', () => {
         });
 
         it('should cache data with a prefix', async () => {
-            await service.cacheData(dataKey, dataValue, {prefix: somePrefix});
-            expect(service._getCacheImpl().set).toHaveBeenCalledWith('namespacenameOfCachedData', JSON.stringify(dataValue));
+            await service.cacheData(dataKey, dataValue, {prefix: tenantIdUsedAsPrefix});
+            expect(service._getCacheImpl().set).toHaveBeenCalledWith('superTenantIdflorida_member', JSON.stringify(dataValue));
         });
 
         it('should cache data with expirationInMins', async () => {
@@ -194,12 +199,12 @@ describe('cache.service', () => {
         });
 
         it('should cache data with a prefix', async () => {
-            await service.removeCachedData(dataKey, {prefix: somePrefix});
-            expect(service._getCacheImpl().del).toHaveBeenCalledWith('namespacenameOfCachedData');
+            await service.removeCachedData(dataKey, {prefix: tenantIdUsedAsPrefix});
+            expect(service._getCacheImpl().del).toHaveBeenCalledWith('superTenantIdflorida_member');
         });
     });
 
-    describe('getCachedData function', () => {
+    describe('basic getCachedData function', () => {
         it('should get cached data', async () => {
             service._getCacheImpl().get.and.returnValue(Promise.resolve(dataValue));
             const result = await service.getCachedData(dataKey);
@@ -209,41 +214,131 @@ describe('cache.service', () => {
 
         it('should get data with a prefix', async () => {
             service._getCacheImpl().get.and.returnValue(Promise.resolve(dataValue));
-            const result = await service.getCachedData(dataKey, {prefix: somePrefix});
+            const result = await service.getCachedData(dataKey, {prefix: tenantIdUsedAsPrefix});
             expect(result).toEqual(dataValue);
-            expect(service._getCacheImpl().get).toHaveBeenCalledWith('namespacenameOfCachedData');
+            expect(service._getCacheImpl().get).toHaveBeenCalledWith('superTenantIdflorida_member');
         });
 
         it('should get the object', async () => {
             spyOn(service, 'getCachedData').and.callThrough();
             service._getCacheImpl().get.and.returnValue(Promise.resolve(JSON.stringify(dataObject)));
-            const result = await service.getCachedObject(dataKey, {prefix: somePrefix});
+            const result = await service.getCachedObject(dataKey, {prefix: tenantIdUsedAsPrefix});
             expect(result).toEqual(dataObject);
-            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: somePrefix});
+            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: tenantIdUsedAsPrefix});
         });
 
         it('should get true', async () => {
             spyOn(service, 'getCachedData').and.callThrough();
             service._getCacheImpl().get.and.returnValue(Promise.resolve('true'));
-            const result = await service.getCachedBooleanValue(dataKey, {prefix: somePrefix});
+            const result = await service.getCachedBooleanValue(dataKey, {prefix: tenantIdUsedAsPrefix});
             expect(result === true).toBeTrue();
-            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: somePrefix});
+            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: tenantIdUsedAsPrefix});
         });
 
         it('getCachedBooleanValue should get false when data is missing', async () => {
             spyOn(service, 'getCachedData').and.callThrough();
             service._getCacheImpl().get.and.returnValue(null);
-            const result = await service.getCachedBooleanValue(dataKey, {prefix: somePrefix});
+            const result = await service.getCachedBooleanValue(dataKey, {prefix: tenantIdUsedAsPrefix});
             expect(result).toBe(false);
-            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: somePrefix});
+            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: tenantIdUsedAsPrefix});
         });
 
         it('getCachedBooleanValue should get false', async () => {
             spyOn(service, 'getCachedData').and.callThrough();
             service._getCacheImpl().get.and.returnValue('false');
-            const result = await service.getCachedBooleanValue(dataKey, {prefix: somePrefix});
+            const result = await service.getCachedBooleanValue(dataKey, {prefix: tenantIdUsedAsPrefix});
             expect(result).toBe(false);
-            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: somePrefix});
+            expect(service.getCachedData).toHaveBeenCalledWith(dataKey, {prefix: tenantIdUsedAsPrefix});
+        });
+    });
+
+    describe('getCachedObjects function', () => {
+        it('should return multiple objects based on prefix', async () => {
+            service._getCacheImpl().mget.and.returnValue(Promise.resolve([
+                JSON.stringify(dataObject), JSON.stringify(dataObject2)]
+            ));
+            const result = await service.getCachedObjects([dataKey, dataKey2], {prefix: tenantIdUsedAsPrefix});
+            expect(result).toEqual([dataObject, dataObject2]);
+            expect(service._getCacheImpl().mget).toHaveBeenCalledWith([tenantIdUsedAsPrefix + dataKey, tenantIdUsedAsPrefix + dataKey2]);
+        });
+
+        it('should return multiple objects based on NO prefix', async () => {
+            service._getCacheImpl().mget.and.returnValue(Promise.resolve([
+                JSON.stringify(dataObject), JSON.stringify(dataObject2)]
+            ));
+            const result = await service.getCachedObjects([dataKey, dataKey2]);
+            expect(result).toEqual([dataObject, dataObject2]);
+            expect(service._getCacheImpl().mget).toHaveBeenCalledWith([dataKey, dataKey2]);
+        });
+
+        it('should return an empty array when no keys are passed', async () => {
+            service._getCacheImpl().mget.and.returnValue(Promise.resolve([
+                JSON.stringify(dataObject), JSON.stringify(dataObject2)
+            ]));
+            const result = await service.getCachedObjects([]);
+            expect(result).toEqual([]);
+            expect(service._getCacheImpl().mget).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getCachedObjectsWithKeyNameBeginning function', () => {
+        it('should return multiple objects based on prefix', async () => {
+            spyOn(service, 'getCachedKeys').and.callFake((keyNameBeginningToMatch) =>
+                Promise.resolve([
+                    keyNameBeginningToMatch + '_restOfKey1', keyNameBeginningToMatch + '_restOfKey2'
+                ])
+            );
+            spyOn(service, 'getCachedObjects').and.callFake((keys) =>
+                Promise.resolve('an array result returning objects for ' + keys)
+            );
+            const result = await service.getCachedObjectsWithKeyNameBeginning('keynameBeginning', {prefix: tenantIdUsedAsPrefix});
+            expect(result).toEqual('an array result returning objects for superTenantIdkeynameBeginning_restOfKey1,superTenantIdkeynameBeginning_restOfKey2');
+            expect(service.getCachedObjects).toHaveBeenCalledWith(['superTenantIdkeynameBeginning_restOfKey1', 'superTenantIdkeynameBeginning_restOfKey2']);
+        });
+
+        it('should return multiple objects based on NO prefix', async () => {
+            spyOn(service, 'getCachedKeys').and.callFake((keyNameBeginningToMatch) =>
+                Promise.resolve([
+                    keyNameBeginningToMatch + '_restOfKey1', keyNameBeginningToMatch + '_restOfKey2'
+                ])
+            );
+            spyOn(service, 'getCachedObjects').and.callFake((keys) =>
+                Promise.resolve('an array result returning objects for ' + keys)
+            );
+            const result = await service.getCachedObjectsWithKeyNameBeginning('keynameBeginning');
+            expect(result).toEqual('an array result returning objects for keynameBeginning_restOfKey1,keynameBeginning_restOfKey2');
+            expect(service.getCachedObjects).toHaveBeenCalledWith(['keynameBeginning_restOfKey1', 'keynameBeginning_restOfKey2']);
+        });
+    });
+
+    describe('getCachedKeys function', () => {
+        beforeEach(async () => {
+            // force to use the local implementation
+            process.env.REDIS_ENABLED = false;
+            service._getCacheImpl.and.callThrough();
+            service._disableLocalCacheFilePersistence();
+            // Use the local impl of scanStream which is a mock of redis scanStream
+            spyOn(service._getCacheImpl(), 'scanStream').and.callThrough();
+        });
+
+        it('should return multiple objects for the search based on prefix', async () => {
+            await service.cacheData(dataKey, dataObject, {prefix: tenantIdUsedAsPrefix});
+            await service.cacheData(dataKey2, dataObject2, {prefix: tenantIdUsedAsPrefix});
+            await service.cacheData('someother key', {dsf: 'someValue'}, {prefix: tenantIdUsedAsPrefix});
+
+            const result = await service.getCachedKeys('florida', {prefix: tenantIdUsedAsPrefix});
+            expect(result).toEqual([dataKey, dataKey2]);
+            expect(service._getCacheImpl().scanStream).toHaveBeenCalledWith({match: 'superTenantIdflorida*', count: 100});
+        });
+
+        it('should return multiple objects for the search based on NO prefix', async () => {
+            await service.cacheData(dataKey, dataObject);
+            await service.cacheData(dataKey2, dataObject2);
+            await service.cacheData('someother key', {dsf: 'someValue'});
+
+            const result = await service.getCachedKeys('florida');
+            expect(result).toEqual([dataKey, dataKey2]);
+            expect(service._getCacheImpl().scanStream).toHaveBeenCalledWith({match: 'florida*', count: 100});
         });
     });
 });

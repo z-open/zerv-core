@@ -49,11 +49,6 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             },
         };
         cacheService._disableLocalCacheFilePersistence();
-        // spyOn(userSessionService, 'getTenantMaximumInactiveSessionTimeoutInMins');
-        // userSessionService.getTenantMaximumInactiveSessionTimeoutInMins.and.returnValue(2);
-
-        spyOn(userSessionService, 'getTenantMaximumActiveSessionTimeoutInMins');
-        userSessionService.getTenantMaximumActiveSessionTimeoutInMins.and.returnValue(24 * 60);
 
         startServer(options, done);
     });
@@ -61,8 +56,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
     afterAll(stopServer);
 
     beforeEach(() => {
+        spyOn(userSessionService, 'getTenantMaximumActiveSessionTimeoutInMins').and.returnValue(24 * 60);
         // otherwise test might create similar tokens (based on now())
         cacheService._clearLocalCache();
+        userSessionService._clearLocalUserSessions();
     });
     afterEach((done) => {
         // give enough time to zerv to close all sockets opened during a test

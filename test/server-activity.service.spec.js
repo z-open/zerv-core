@@ -5,7 +5,7 @@ const service = require('../lib/server-activity.service');
 describe('server-activity.service', () => {
     let now;
     beforeEach(() => {
-        now = moment('Feb 6 2020 05:06:07', 'MMM DD YYYY hh:mm:ss').toDate();
+        now = moment('2020-02-06T10:06:07Z').toDate();
         jasmine.clock().install();
         jasmine.clock().mockDate(now);
     });

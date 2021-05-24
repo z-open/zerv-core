@@ -1,5 +1,4 @@
 'use strict';
-const Promise = require('promise');
 const _ = require('lodash');
 const zerv = require('../lib/zerv-core');
 

@@ -88,6 +88,24 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
                 setTimeout(done, 1200);
             });
+
+            it('should not connect with a bad token', function(done) {
+                const socket = io.connect('http://localhost:9000', {
+                    'forceNew': true,
+                });
+
+                socket.on('connect', () => {
+                    socket.on('authenticated', () => done.fail('should NOT have been authenticated'));
+                    socket.on('unauthorized', (error) => {
+                        expect(error.message).toBe('Token is invalid');
+                        expect(error.data.code).toBe('invalid_token');
+                        done();
+                    });
+                    socket.emit('authenticate', {token: 'badtoken'});
+                });
+
+                setTimeout(done, 1200);
+            });
         });
 
         describe('when the user is logged in', function() {
@@ -157,7 +175,8 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                             socket2.on('unauthorized', function(err) {
                                 // console.log("error" + JSON.stringify(err));
                                 socket2.close();
-                                expect(err.message).toBe('Token is no longer valid');
+                                expect(err.message).toBe('Token was revoked');
+                                expect(err.data.code).toBe('revoked_token');
                                 done();
                             }).emit('authenticate', {token: authToken});
                         });
@@ -254,7 +273,8 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                             socket2.on('unauthorized', function(err) {
                                 // console.log("error" + JSON.stringify(err));
                                 socket2.close();
-                                expect(err.message).toBe('Token is no longer valid');
+                                expect(err.message).toBe('Token was revoked');
+                                expect(err.data.code).toBe('revoked_token');
                                 done();
                             }).emit('authenticate', {token: refreshedToken});
                         });

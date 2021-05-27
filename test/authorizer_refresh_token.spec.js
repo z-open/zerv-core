@@ -13,17 +13,20 @@ const zlog = require('zimit-zlog');
 
 const cacheService = require('../lib/cache.service');
 const userSessionService = require('../lib/user-session.service');
+const httpAuthorize = require('../lib/authorize/http-authorize');
 
 let server, socketIo;
 zlog.setLogger('ZERV-CORE', 'ALL');
 
 describe('TEST: authorizer with auth code and refresh tokens', function() {
     let options;
+    const codeExpiresInSecs= 20;
+
     // start and stop the server
     beforeAll(function(done) {
         options = {
             timeout: 1500, // to complete authentication. from socket connection to authentication
-            codeExpiresInSecs: 20,
+            codeExpiresInSecs,
             tokenRefreshIntervalInMins: 2, // this is when the token will get refreshed
 
             claim: function(user) {
@@ -84,7 +87,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
 
                 socket.on('echo-response', function() {
                     done(new Error('this should not happen'));
-                }).emit('echo', {hi: 123});
+                }).emit('echo', { hi: 123 });
 
                 setTimeout(done, 1200);
             });
@@ -101,7 +104,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                         expect(error.data.code).toBe('invalid_token');
                         done();
                     });
-                    socket.emit('authenticate', {token: 'badtoken'});
+                    socket.emit('authenticate', { token: 'badtoken' });
                 });
 
                 setTimeout(done, 1200);
@@ -114,7 +117,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             beforeEach(function(done) {
                 request.post({
                     url: 'http://localhost:9000/authorize',
-                    body: {'username': 'jose', 'password': 'Pa123', 'grant_type': 'login'},
+                    body: { 'username': 'jose', 'password': 'Pa123', 'grant_type': 'login' },
                     json: true
                 }, (err, resp, body) => {
                     if (err) {
@@ -152,7 +155,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                     // let's wait a sec so that the iat can be different from the auth code
                     // but no more otherwise the authentication timeout (in options) will kick in.
                     setTimeout(() => {
-                        socket.emit('authenticate', {token: authToken});
+                        socket.emit('authenticate', { token: authToken });
                     }, 1100);
                 });
             });
@@ -181,9 +184,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                 expect(err.message).toBe('Token was revoked');
                                 expect(err.data.code).toBe('revoked_token');
                                 done();
-                            }).emit('authenticate', {token: authToken});
+                            }).emit('authenticate', { token: authToken });
                         });
-                    }).emit('authenticate', {token: authToken});
+                    }).emit('authenticate', { token: authToken });
                 });
             });
 
@@ -222,15 +225,15 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                         done();
                                     });
                                     // when socket3 might not be coming from the same origin (hacker?)
-                                    socket3.emit('authenticate', {token: refreshToken, origin: 'someotherPc'});
+                                    socket3.emit('authenticate', { token: refreshToken, origin: 'someotherPc' });
                                 });
                             });
                             // when socket2 connect with the auth code, it will receive a refresh token
                             // this is the token that will be used to track the origin of the connection which is the browser.
-                            socket2.emit('authenticate', {token: refreshToken, origin: refreshToken});
+                            socket2.emit('authenticate', { token: refreshToken, origin: refreshToken });
                         });
                     });
-                    socket.emit('authenticate', {token: authToken});
+                    socket.emit('authenticate', { token: authToken });
                 });
             });
 
@@ -247,7 +250,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                     }).on('logged_out', function() {
                         socket.close();
                         done();
-                    }).emit('authenticate', {token: authToken});
+                    }).emit('authenticate', { token: authToken });
                 });
             });
 
@@ -279,19 +282,19 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                 expect(err.message).toBe('Token was revoked');
                                 expect(err.data.code).toBe('revoked_token');
                                 done();
-                            }).emit('authenticate', {token: refreshedToken});
+                            }).emit('authenticate', { token: refreshedToken });
                         });
-                    }).emit('authenticate', {token: authToken});
+                    }).emit('authenticate', { token: authToken });
                 });
             });
         });
     });
 
-    describe('Http authentication', function() {
+    describe('Http authentication', () => {
         it('should authorize and return a token', (done) => {
             request.post({
                 url: 'http://localhost:9000/authorize',
-                body: {'username': 'jose', 'password': 'Pa123', 'grant_type': 'rest'},
+                body: { 'username': 'jose', 'password': 'Pa123', 'grant_type': 'rest' },
                 json: true
             }, function(err, resp, body) {
                 if (err) {
@@ -312,7 +315,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
         it('should reject invalid credentials', (done) => {
             request.post({
                 url: 'http://localhost:9000/authorize',
-                body: {'username': 'jose', 'password': 'wrong', 'grant_type': 'rest'},
+                body: { 'username': 'jose', 'password': 'wrong', 'grant_type': 'rest' },
                 json: true
             }, function(err, resp, body) {
                 if (err) {
@@ -328,7 +331,7 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
         it('should reject invalid request', (done) => {
             request.post({
                 url: 'http://localhost:9000/authorize',
-                body: {'username': 'jose', 'password': 'wrong', 'grant_type': 'unknown'},
+                body: { 'username': 'jose', 'password': 'wrong', 'grant_type': 'unknown' },
                 json: true
             }, function(err, resp, body) {
                 if (err) {
@@ -341,6 +344,89 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
             });
         });
     });
+
+    describe('Http authorize', () => {
+        let accessToken;
+
+        beforeEach((done) => {
+            jasmine.clock().install();
+            jasmine.clock().mockDate(new Date());
+
+            request.post({
+                url: 'http://localhost:9000/authorize',
+                body: { 'username': 'jose', 'password': 'Pa123', 'grant_type': 'rest' },
+                json: true
+            }, async (err, resp, body) => {
+                if (err) {
+                    done.fail('preparation should not have failed');
+                }
+                accessToken = body.access_token;
+                done();
+            });
+        });
+
+        afterEach(() => {
+            jasmine.clock().uninstall();;
+        });
+
+        it('should accept the token', async () => {
+            const req = {
+                url: '/someUrl',
+                headers: {
+                    'access-token': accessToken
+                }
+            };
+            // it is not expired yet
+            jasmine.clock().tick(codeExpiresInSecs * 1000 - 1000);
+            const result = await httpAuthorize(options, req);
+            expect(result).toEqual({
+                payload: jasmine.any(Object),
+                newToken: 'not implemented'
+            });
+
+            const payload = result.payload;
+            expect(payload.iat).toBeDefined();
+            expect(payload.exp).toBeDefined();
+            expect(payload.exp - payload.iat).toBe(20);
+        });
+
+        it('should reject the expired token', async (done) => {
+            const req = {
+                url: '/someUrl',
+                headers: {
+                    'access-token': accessToken
+                }
+            };
+            console.info(new Date());
+            jasmine.clock().tick(codeExpiresInSecs * 1000 + 100);
+            try {
+                await httpAuthorize(options, req);
+                done.fail('should have failed');
+            } catch (err) {
+                expect(err).toEqual(new Error('Token is invalid'));
+                done();
+            }
+        });
+
+        it('should reject the bad token', async (done) => {
+            const req = {
+                url: '/someUrl',
+                headers: {
+                    'access-token': 'BAD_TOKEN'
+                }
+            };
+            console.info(new Date());
+            jasmine.clock().tick(1200000 + 100);
+            try {
+                await httpAuthorize(options, req);
+                done.fail('should have failed');
+            } catch (err) {
+                expect(err).toEqual(new Error('Token is invalid'));
+                done();
+            }
+        });
+    });
+
 });
 
 

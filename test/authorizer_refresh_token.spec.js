@@ -116,7 +116,10 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                     url: 'http://localhost:9000/authorize',
                     body: {'username': 'jose', 'password': 'Pa123', 'grant_type': 'login'},
                     json: true
-                }, function(err, resp, body) {
+                }, (err, resp, body) => {
+                    if (err) {
+                        throw err;
+                    }
                     authToken = body.access_token;
                     done();
                 });
@@ -222,8 +225,8 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                                     socket3.emit('authenticate', {token: refreshToken, origin: 'someotherPc'});
                                 });
                             });
-                        // when socket2 connect with the auth code, it will receive a refresh token
-                        // this is the token that will be used to track the origin of the connection which is the browser.
+                            // when socket2 connect with the auth code, it will receive a refresh token
+                            // this is the token that will be used to track the origin of the connection which is the browser.
                             socket2.emit('authenticate', {token: refreshToken, origin: refreshToken});
                         });
                     });
@@ -291,6 +294,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 body: {'username': 'jose', 'password': 'Pa123', 'grant_type': 'rest'},
                 json: true
             }, function(err, resp, body) {
+                if (err) {
+                    throw err;
+                }
                 const authToken = body.access_token;
                 expect(authToken).toBeDefined();
                 expect(body.url).toBe('restServer/');
@@ -309,6 +315,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 body: {'username': 'jose', 'password': 'wrong', 'grant_type': 'rest'},
                 json: true
             }, function(err, resp, body) {
+                if (err) {
+                    throw err;
+                }
                 expect(body.code).toBeDefined();
                 expect(body.code).toBe('USER_INVALID');
                 expect(resp.statusCode).toBe(401);
@@ -322,6 +331,9 @@ describe('TEST: authorizer with auth code and refresh tokens', function() {
                 body: {'username': 'jose', 'password': 'wrong', 'grant_type': 'unknown'},
                 json: true
             }, function(err, resp, body) {
+                if (err) {
+                    throw err;
+                }
                 expect(body.code).toBeDefined();
                 expect(body.code).toBe('INVALID_TYPE');
                 expect(resp.statusCode).toBe(400);

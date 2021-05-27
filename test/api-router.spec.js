@@ -18,8 +18,8 @@ describe('ApiRouter', () => {
             tenantId: 'corpPlus',
             payload: '12345678',
             creation: '02/01/2020',
-            on: async function(event, fn) {
-                socketOnCallback = arguments[1];
+            on: async (event, fn) => {
+                socketOnCallback = fn;
             },
             emit: (name, data) => new Promise((resolve) => {
                 socketOnCallback(name, data, resolve);

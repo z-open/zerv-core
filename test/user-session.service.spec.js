@@ -34,7 +34,7 @@ describe('user-session.service', () => {
         iat = Math.round(now.getTime() / 1000);
         // this is the expiration date
         exp = iat + 24 * 60 * 60;
-
+        /*eslint-disable no-use-before-define*/
         socketForUser01 = new MockSocket({
             id: 'socketId',
             userId: 'user01',
@@ -328,8 +328,6 @@ describe('user-session.service', () => {
                     firstName: 'Luke',
                     lastName: 'John',
                     maxActiveDuration: 129600,
-                    clusterCreation: null,
-                    clusterUserSessionId: null,
                     connections: 0,
                     lastUserActivity: jasmine.any(Date),
                     lastUserActivityStatus: 'NEW SESSION',

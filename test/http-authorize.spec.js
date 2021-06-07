@@ -17,12 +17,12 @@ const httpAuthorize = require('../lib/authorize/http-authorize');
 let server, socketIo;
 zlog.setLogger('ZERV-CORE', 'ALL');
 
-describe('Http Authorize', function() {
+describe('Http Authorize', () => {
     let options;
     const codeExpiresInSecs= 20;
 
     // start and stop the server
-    beforeAll(function(done) {
+    beforeAll((done) => {
         options = {
             codeExpiresInSecs,
             claim: function(user) {
@@ -206,10 +206,10 @@ describe('Http Authorize', function() {
 
 
 function startServer(options, callback) {
-    options.restUrl = function() {
+    options.restUrl = () => {
         return 'restServer/';
     };
-    options.appUrl = function() {
+    options.appUrl = () => {
         return 'appServer/';
     };
 

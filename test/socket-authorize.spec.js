@@ -17,12 +17,12 @@ const userSessionService = require('../lib/user-session.service');
 let server, socketIo;
 zlog.setLogger('ZERV-CORE', 'ALL');
 
-describe('Socket authorize', function() {
+describe('Socket authorize', () => {
     let options;
     const codeExpiresInSecs= 20;
 
     // start and stop the server
-    beforeAll(function(done) {
+    beforeAll((done) => {
         options = {
             timeout: 1500, // to complete authentication. from socket connection to authentication
             codeExpiresInSecs,
@@ -68,30 +68,30 @@ describe('Socket authorize', function() {
         setTimeout(done, 50);
     });
 
-    describe('Middleware', function() {
-        describe('when the user is not logged in', function() {
-            it('should close the connection after a timeout if no auth message is received', function(done) {
+    describe('Middleware', () => {
+        describe('when the user is not logged in', () => {
+            it('should close the connection after a timeout if no auth message is received', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     forceNew: true
                 });
-                socket.once('disconnect', function() {
+                socket.once('disconnect', () => {
                     done();
                 });
             });
 
-            it('should not respond echo', function(done) {
+            it('should not respond echo', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
 
-                socket.on('echo-response', function() {
+                socket.on('echo-response', () => {
                     done(new Error('this should not happen'));
                 }).emit('echo', { hi: 123 });
 
                 setTimeout(done, 1200);
             });
 
-            it('should not connect with a bad token', function(done) {
+            it('should not connect with a bad token', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
@@ -110,10 +110,10 @@ describe('Socket authorize', function() {
             });
         });
 
-        describe('when the user is logged in', function() {
+        describe('when the user is logged in', () => {
             let authToken;
 
-            beforeEach(function(done) {
+            beforeEach((done) => {
                 request.post({
                     url: 'http://localhost:9000/authorize',
                     body: { 'username': 'jose', 'password': 'Pa123', 'grant_type': 'login' },
@@ -127,14 +127,14 @@ describe('Socket authorize', function() {
                 });
             });
 
-            it('should do the handshake and connect and receive a token with different expiration values', function(done) {
+            it('should do the handshake and connect and receive a token with different expiration values', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
                 const authPayload = jwt.decode(authToken);
                 expect(authPayload.exp - authPayload.iat).toBe(20);
 
-                socket.on('connect', function() {
+                socket.on('connect', () => {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
                         expect(authToken).not.toBe(refreshToken);
@@ -160,11 +160,11 @@ describe('Socket authorize', function() {
             });
 
 
-            it('should connect, refresh token and make the auth token invalid', function(done) {
+            it('should connect, refresh token and make the auth token invalid', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                socket.on('connect', function() {
+                socket.on('connect', () => {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
                         expect(authToken).not.toBe(refreshToken);
@@ -176,7 +176,7 @@ describe('Socket authorize', function() {
                         const socket2 = io.connect('http://localhost:9000', {
                             'forceNew': true,
                         });
-                        socket2.on('connect', function() {
+                        socket2.on('connect', () => {
                             socket2.on('unauthorized', function(err) {
                                 // console.log("error" + JSON.stringify(err));
                                 socket2.close();
@@ -190,11 +190,11 @@ describe('Socket authorize', function() {
             });
 
 
-            it('should connect, refresh token and make the refreshed token invalid', function(done) {
+            it('should connect, refresh token and make the refreshed token invalid', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                socket.on('connect', function() {
+                socket.on('connect', () => {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
                         expect(authToken).not.toBe(refreshToken);
@@ -204,7 +204,7 @@ describe('Socket authorize', function() {
                         const socket2 = io.connect('http://localhost:9000', {
                             'forceNew': true,
                         });
-                        socket2.on('connect', function() {
+                        socket2.on('connect', () => {
                             socket2.on('authenticated', function(newRefreshedToken, fnAck2) {
                                 // console.log("error" + JSON.stringify(err));
                                 fnAck2();
@@ -214,7 +214,7 @@ describe('Socket authorize', function() {
                                 const socket3 = io.connect('http://localhost:9000', {
                                     'forceNew': true,
                                 });
-                                socket3.on('connect', function() {
+                                socket3.on('connect', () => {
                                     socket3.on('unauthorized', function(err) {
                                         // console.log("error" + JSON.stringify(err));
                                         socket3.close();
@@ -236,17 +236,17 @@ describe('Socket authorize', function() {
                 });
             });
 
-            it('should connect, refresh token and then logout', function(done) {
+            it('should connect, refresh token and then logout', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
-                socket.on('connect', function() {
+                socket.on('connect', () => {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
                         expect(authToken).not.toBe(refreshToken);
                         fnAck();
                         socket.emit('logout', refreshToken);
-                    }).on('logged_out', function() {
+                    }).on('logged_out', () => {
                         socket.close();
                         done();
                     }).emit('authenticate', { token: authToken });
@@ -254,27 +254,27 @@ describe('Socket authorize', function() {
             });
 
 
-            it('should prevent reconnecting with same token after logout', function(done) {
+            it('should prevent reconnecting with same token after logout', (done) => {
                 const socket = io.connect('http://localhost:9000', {
                     'forceNew': true,
                 });
                 let refreshedToken;
 
-                socket.on('connect', function() {
+                socket.on('connect', () => {
                     socket.on('authenticated', function(refreshToken, fnAck) {
                         expect(refreshToken).toBeDefined();
                         expect(authToken).not.toBe(refreshToken);
                         refreshedToken = refreshToken;
                         fnAck();
                         socket.emit('logout', refreshToken);
-                    }).on('logged_out', function() {
+                    }).on('logged_out', () => {
                         socket.close();
 
                         // now we try to use the refreshToken again!
                         const socket2 = io.connect('http://localhost:9000', {
                             'forceNew': true,
                         });
-                        socket2.on('connect', function() {
+                        socket2.on('connect', () => {
                             socket2.on('unauthorized', function(err) {
                                 // console.log("error" + JSON.stringify(err));
                                 socket2.close();
@@ -293,10 +293,10 @@ describe('Socket authorize', function() {
 
 
 function startServer(options, callback) {
-    options.restUrl = function() {
+    options.restUrl = () => {
         return 'restServer/';
     };
-    options.appUrl = function() {
+    options.appUrl = () => {
         return 'appServer/';
     };
 

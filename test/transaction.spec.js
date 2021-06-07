@@ -21,7 +21,7 @@ describe('transaction', () => {
 
     beforeEach(() => {
         startTransaction = zerv.startTransaction;
-        /*eslint-disable no-use-before-define*/
+        /*eslint-disable-next-line no-use-before-define*/
         zerv.setTransactionImplementationClass(DbTransactionImplementation);
 
         zerv.notifyCreation = _.noop;

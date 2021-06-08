@@ -278,11 +278,11 @@ describe('Socket authorize', () => {
                             socket2.on('unauthorized', function(err) {
                                 // console.log("error" + JSON.stringify(err));
                                 socket2.close();
-                                expect(err.message).toBe('Connection initialization error');
+                                expect(err.message).toBe('Token was revoked');
                                 // the origin was incorrect no session was not found
-                                expect(err.data.code).toBe('inactive_session_timeout_or_session_not_found');
+                                expect(err.data.code).toBe('revoked_token');
                                 done();
-                            }).emit('authenticate', { token: refreshedToken, origin: refreshedToken });
+                            }).emit('authenticate', { token: refreshedToken });
                         });
                     }).emit('authenticate', { token: authToken });
                 });

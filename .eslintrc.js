@@ -108,6 +108,7 @@ module.exports = {
         'xit': true,
         'spyOn': true,
         'jasmine': true,
+        'Map': true,
     },
 
     env: {

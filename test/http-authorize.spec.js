@@ -165,7 +165,7 @@ describe('Http Authorize', () => {
             expect(payload.exp - payload.iat).toBe(20);
         });
 
-        it('should reject the expired token', async (done) => {
+        it('should reject the expired token', async () => {
             const req = {
                 url: '/someUrl',
                 headers: {
@@ -176,14 +176,13 @@ describe('Http Authorize', () => {
             jasmine.clock().tick(codeExpiresInSecs * 1000 + 100);
             try {
                 await httpAuthorize(options, req);
-                done.fail('should have failed');
+                throw new Error('should have failed');
             } catch (err) {
                 expect(err).toEqual(new Error('Token is invalid'));
-                done();
             }
         });
 
-        it('should reject the bad token', async (done) => {
+        it('should reject the bad token', async () => {
             const req = {
                 url: '/someUrl',
                 headers: {
@@ -194,10 +193,9 @@ describe('Http Authorize', () => {
             jasmine.clock().tick(1200000 + 100);
             try {
                 await httpAuthorize(options, req);
-                done.fail('should have failed');
+                throw new Error('should have failed');
             } catch (err) {
                 expect(err).toEqual(new Error('Token is invalid'));
-                done();
             }
         });
     });

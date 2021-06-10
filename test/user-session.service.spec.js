@@ -27,14 +27,15 @@ describe('user-session.service', () => {
 
         io = {
             sockets: {
-                sockets: []
+                // socketio 4.x uses a map instead of an array
+                sockets: new Map()
             }
         };
         // this is the timestamp when the fake token payload would have created by JWTwebtoken
         iat = Math.round(now.getTime() / 1000);
         // this is the expiration date
         exp = iat + 24 * 60 * 60;
-
+        /*eslint-disable no-use-before-define*/
         socketForUser01 = new MockSocket({
             id: 'socketId',
             userId: 'user01',
@@ -177,7 +178,8 @@ describe('user-session.service', () => {
         it('should creates a local session belonging to a cluster', async () => {
             spyOn(UUID, 'v4').and.returnValue('aUuid');
             service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
-            io.sockets.sockets = [socketForUser01];
+
+            io.sockets.sockets.set(socketForUser01.id, socketForUser01);
             const localUserSession = await service.connectUser(socketForUser01);
             expect(service.getLocalUserSessions()).toEqual([localUserSession]);
             expect(localUserSession.toJSON()).toEqual(
@@ -232,7 +234,8 @@ describe('user-session.service', () => {
                 maxActiveDuration: 129600
             });
             service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
-            io.sockets.sockets = [socketForUser01];
+
+            io.sockets.sockets.set(socketForUser01.id, socketForUser01);
             const localUserSession = await service.connectUser(socketForUser01);
             expect(service.getLocalUserSessions()).toEqual([localUserSession]);
             expect(localUserSession.toJSON()).toEqual(
@@ -266,7 +269,7 @@ describe('user-session.service', () => {
 
         it('should create a new session that notifies via zerv sync', async () => {
             service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
-            io.sockets.sockets = [socketForUser01];
+            io.sockets.sockets.set(socketForUser01.id, socketForUser01);
             const localUserSession = await service.connectUser(socketForUser01);
 
             expect(zervWithSyncModule.publish).toHaveBeenCalledTimes(1);
@@ -281,10 +284,10 @@ describe('user-session.service', () => {
 
         it('should not create a new session but increase number of connections to the existing one', async () => {
             service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
-            io.sockets.sockets = [socketForUser01];
+            io.sockets.sockets.set(socketForUser01.id, socketForUser01);
             const session = await service.connectUser(socketForUser01);
             expect(session.connections).toEqual(1);
-            io.sockets.sockets = [socketForUser01, socket2ForUser01];
+            io.sockets.sockets.set(socket2ForUser01.id, socket2ForUser01);
             service.connectUser(socket2ForUser01);
             expect(session.connections).toEqual(2);
         });
@@ -300,6 +303,7 @@ describe('user-session.service', () => {
 
             service.init(zerv, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
+            expect(io.sockets.sockets.has(socketForUser01.id)).toBe(true);
             socketForUser01.connected = false;
             const beforeNow = now;
             jasmine.clock().tick(10000);
@@ -328,8 +332,6 @@ describe('user-session.service', () => {
                     firstName: 'Luke',
                     lastName: 'John',
                     maxActiveDuration: 129600,
-                    clusterCreation: null,
-                    clusterUserSessionId: null,
                     connections: 0,
                     lastUserActivity: jasmine.any(Date),
                     lastUserActivityStatus: 'NEW SESSION',
@@ -428,8 +430,8 @@ describe('user-session.service', () => {
             service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
             await socketForUser01.connect();
             await socketForUser02.connect();
-            // jasmine.clock().tick(50 * 60000);
-            io.sockets.sockets = [socketForUser02];
+
+            io.sockets.sockets.set(socketForUser02.id, socketForUser02);
             // one disconnect
             await socketForUser01.disconnect();
             jasmine.clock().tick(50 * 60000);
@@ -452,7 +454,7 @@ describe('user-session.service', () => {
         beforeEach(async () => {
             spyOn(service, '_logoutLocally');
             service.init(zervWithSyncModule, io, inactiveLocalUserSessionTimeoutInMins);
-            io.sockets.sockets = [socketForUser01, socketForUser02];
+            io.sockets.sockets.set(socket2ForUser01.id, socket2ForUser01);
             localUserSession = await service.connectUser(socketForUser01);
         });
 
@@ -686,23 +688,24 @@ describe('user-session.service', () => {
 class MockSocket {
     constructor(obj) {
         _.assign(this, obj);
+        this.id = obj.id;
         this.connected = true;
         this.emit = jasmine.createSpy(this.id + '.emit');
     }
 
     connect() {
         this.connected = true;
-        const s = _.find(io.sockets.sockets, {id: this.id});
+        const s = io.sockets.sockets.get(this.id);
         if (s) {
             throw new Error('something is wrong in the unit test, you are trying to connect the same socket twice.');
         }
-        io.sockets.sockets.push(this);
+        io.sockets.sockets.set(this.id, this);
         return service.connectUser(this);
     }
 
     disconnect() {
         this.connected = false;
-        _.remove(io.sockets.sockets, {id: this.id});
+        io.sockets.sockets.delete(this.id);
         return service.disconnectUser(this);
     }
 }

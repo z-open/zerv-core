@@ -374,6 +374,8 @@ npm install
 npm test
 ```
 
+No process should be running on port 9000 when running the tests.
+
 ## Issue Reporting
 
 

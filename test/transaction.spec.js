@@ -1,5 +1,4 @@
 'use strict';
-const Promise = require('promise');
 const _ = require('lodash');
 const zerv = require('../lib/zerv-core');
 
@@ -22,6 +21,7 @@ describe('transaction', () => {
 
     beforeEach(() => {
         startTransaction = zerv.startTransaction;
+        /*eslint-disable-next-line no-use-before-define*/
         zerv.setTransactionImplementationClass(DbTransactionImplementation);
 
         zerv.notifyCreation = _.noop;

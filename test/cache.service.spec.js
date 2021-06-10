@@ -15,6 +15,9 @@ describe('cache.service', () => {
         tenantIdUsedAsPrefix = 'superTenantId';
 
         spyOn(service, 'getRedisClient').and.callThrough();
+        spyOn(service, '_createIoRedis').and.returnValue({
+            constructorName: 'Redis',
+        });
         spyOn(service, '_getCacheImpl').and.returnValue({
             setex: jasmine.createSpy('_getCacheImpl.setex').and.returnValues(Promise.resolve()),
             set: jasmine.createSpy('_getCacheImpl.set').and.returnValues(Promise.resolve()),
@@ -27,12 +30,27 @@ describe('cache.service', () => {
 
     afterEach(() => {
         process.env.REDIS_ENABLED = false;
+        service._clearIoRedisInstance();
+    });
+
+    it('_createIoRedis should return the redis instance', () => {
+        service._createIoRedis.and.callThrough();
+        const result = service._createIoRedis();
+        expect(result.constructor.name).toBe('Redis');
+        try {
+            // prevent attempt to connecting redis and throwing error in test
+            result.end();
+        } catch(err) {
+            // swallow any err, 
+        }
     });
 
     describe('getRedisClient function', () => {
         it('getRedisClient should return the redis client', async () => {
             const result = service.getRedisClient();
-            expect(result.constructor.name).toBe('Redis');
+            expect(result.constructorName).toBe('Redis');
+            expect(service._createIoRedis).toHaveBeenCalledTimes(1);
+            expect(service._createIoRedis).toHaveBeenCalledWith();
         });
 
         it('getRedisClient should return the cached client', async () => {
@@ -62,7 +80,8 @@ describe('cache.service', () => {
         it('should return redis implementation', async () => {
             service._getCacheImpl.and.callThrough();
             const result = service._getCacheImpl();
-            expect(result.constructor.name).toBe('Redis');
+            expect(result.constructorName).toBe('Redis');
+            expect(service._createIoRedis).toHaveBeenCalledTimes(1);
         });
         it('should return local cache implementation', async () => {
             service._getCacheImpl.and.callThrough();
